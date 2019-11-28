@@ -4,6 +4,7 @@ import org.apache.jena.riot.RDFParser;
 import se.liu.ida.rdfstar.tools.parser.lang.LangTrigStar;
 import se.liu.ida.rspqlstar.store.dataset.RDFStarStream;
 import se.liu.ida.rspqlstar.store.dataset.RDFStarStreamElement;
+import se.liu.ida.rspqlstar.store.engine.main.pattern.QuadStarPattern;
 import se.liu.ida.rspqlstar.util.TimeUtil;
 
 import java.io.ByteArrayInputStream;
@@ -42,24 +43,23 @@ public class StreamFromFile extends RSPQLStarStream {
         final File file = new File(url.getFile());
 
         TimeUtil.silentSleep(initialDelay);
-
         try (Stream linesStream = Files.lines(file.toPath())) {
             final Iterator<String> linesIter = linesStream.iterator();
             while(linesIter.hasNext() && !stop){
                 final String line = linesIter.next();
-                final long t0 = System.currentTimeMillis();
+                final long t0 = TimeUtil.getTime().getTime();
                 if(prefixes == null) {
                     prefixes = line;
                 } else {
-                    final RDFStarStreamElement tg = new RDFStarStreamElement(TimeUtil.getTime());
+                    final RDFStarStreamElement tg = new RDFStarStreamElement();
                     RDFParser.create()
                             .base("http://base/")
                             .source(new ByteArrayInputStream((prefixes + line).getBytes()))
                             .checking(false)
                             .lang(LangTrigStar.TRIGSTAR)
                             .parse(tg);
-                    final long t1 = System.currentTimeMillis();
-                    delayedPush(tg, totalDelay - (t1-t0));
+                    long delay = tg.time - t0;
+                    delayedPush(tg, delay < 0 ? 0 : delay);
                 }
             }
         } catch (IOException e) {

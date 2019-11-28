@@ -2,6 +2,7 @@ package se.liu.ida.rspqlstar.store.engine.main;
 
 import org.apache.commons.collections4.iterators.IteratorChain;
 import org.apache.jena.graph.Node;
+import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.graph.Node_Triple;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.sparql.algebra.Op;
@@ -103,8 +104,8 @@ public class OpRSPQLStarExecutor extends OpExecutor {
     protected Iterator<SolutionMapping> execute(final OpJoin opJoin, final Iterator<SolutionMapping> input){
         final Op opLeft = opJoin.getLeft();
         final Op opRight = opJoin.getRight();
-        final Iterator<SolutionMapping> iterator = executeIdBasedOp(opLeft, input);
-        return executeIdBasedOp(opRight, iterator);
+        final Iterator<SolutionMapping> iterator = executeIdBasedOp(opRight, input);
+        return executeIdBasedOp(opLeft, iterator);
     }
 
     /**
@@ -153,38 +154,38 @@ public class OpRSPQLStarExecutor extends OpExecutor {
     }
 
     private Iterator<SolutionMapping> execute(OpExtend opExtend, Iterator<SolutionMapping> input) {
+        Iterator<SolutionMapping> iter;
+
         // regular extend
         final Expr expr = opExtend.getVarExprList().getExprs().values().iterator().next();
         final Var var = opExtend.getVarExprList().getVars().get(0);
         final Key key;
 
         if(expr instanceof ExprVar){
-            throw new IllegalStateException("Binding variable to variable is currently not supported.");
+            int var2 = encode(expr.getExprVar().asVar()); // should now already have been assigned a value
+            iter = new IdBasedVarToVarExtendIterator(encode(var), var2, input, execCxt);
+            //throw new IllegalStateException("Binding variable to variable is currently not supported.");
         } else if(expr instanceof ExprFunction) {
-            encode(var);
-            QueryIterator iter = exec(opExtend, new DecodeBindingsIterator(input, execCxt));
-            return new EncodeBindingsIterator(iter, execCxt);
+            System.err.println(opExtend.getSubOp().getName());
+            encode(var); // add the var to var dictionary
+            iter = new EncodeBindingsIterator(exec(opExtend, new DecodeBindingsIterator(input, execCxt)), execCxt);
         } else {
             final Node node = ((NodeValue) expr).asNode();
             final Long id = encode(node);
-            // use a NodeWrapperKey if the value cannot be encoded
+            // use NodeWrapperKey if the value cannot be encoded
             key = id != null ? new Key(id) : new NodeWrapperKey(node);
+            iter = new IdBasedExtendIterator(encode(var), key, input, execCxt);
         }
-
-        return new IdBasedExtendIterator(encode(var), key, input, execCxt);
+        return iter;
     }
 
     private Iterator<SolutionMapping> execute(final OpExtendQuad opExtendQuad, final Iterator<SolutionMapping> input) {
         final OpExtend opExtend = opExtendQuad.getSubOp();
         final Expr expr = opExtend.getVarExprList().getExprs().values().iterator().next();
 
-        //if(expr instanceof ExprVar){
-        //    return Collections.emptyIterator();
-        //}
-
         final Node node = ((NodeValue) expr).asNode();
         final Var var = opExtend.getVarExprList().getVars().get(0);
-
+        final Iterator<SolutionMapping> iter;
         if (node instanceof Node_Triple) {
             // Get the graph context from the original opExtendQuad
             final Element g = encodeAsElement(opExtendQuad.getGraph());
@@ -194,10 +195,11 @@ public class OpRSPQLStarExecutor extends OpExecutor {
             final Element p = encodeAsElement(t.getPredicate());
             final Element o = encodeAsElement(t.getObject());
             final QuadStarPattern pattern = new QuadStarPattern(g, s, p, o);
-            return new IdBasedEmbeddedTriplePatternExtend(encode(var), pattern, input, execCxt);
+            iter = new IdBasedEmbeddedTriplePatternExtend(encode(var), pattern, input, execCxt);
         } else {
             throw new IllegalStateException("OpExtendQuad does not bind to a Node_Triple");
         }
+        return iter;
     }
 
     private Iterator<SolutionMapping> execute(final OpWindow opWindow, final Iterator<SolutionMapping> input) {
@@ -217,12 +219,15 @@ public class OpRSPQLStarExecutor extends OpExecutor {
         } else if (op instanceof OpSequence) {
             iterator = execute((OpSequence) op, input);
         } else if (op instanceof OpExtend) {
+            /*
             OpExtend opExtend = (OpExtend) op;
+            System.err.println("OpExtend with subop: " + ((OpExtend) op).getSubOp().getName());
             if(opExtend.getSubOp() instanceof OpExtend){
                 iterator = executeIdBasedOp(opExtend.getSubOp(), execute((OpExtend) op, input));
             } else {
                 iterator = execute((OpExtend) op, input);
             }
+             */
         } else if (op instanceof OpExtendQuad) {
             iterator = execute((OpExtendQuad) op, input);
         } else if (op instanceof OpFilter) {
@@ -231,10 +236,12 @@ public class OpRSPQLStarExecutor extends OpExecutor {
             iterator = execute((OpTable) op, input);
         } else if(op instanceof OpWindow) {
             iterator = execute((OpWindow) op, input);
-        }  else if(op instanceof OpUnion) {
-            OpUnion opUnion = (OpUnion) op;
-            iterator = new IteratorChain<>(executeIdBasedOp(opUnion.getLeft(), input), executeIdBasedOp(opUnion.getRight(), input));
-        } else {
+        }  //else if(op instanceof OpUnion) {
+        //   // TODO: Fix union. Currently does not work as expected.
+        //    OpUnion opUnion = (OpUnion) op;
+        //    iterator = new IteratorChain<>(executeIdBasedOp(opUnion.getLeft(), input), executeIdBasedOp(opUnion.getRight(), input));
+        //
+        else {
             logger.info("There is no id-based iterator implemented for " + op + ", defaulting to decode/encode");
             QueryIterator iter = exec(op, new DecodeBindingsIterator(input, execCxt));
             return new EncodeBindingsIterator(iter, execCxt);

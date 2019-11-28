@@ -27,6 +27,10 @@ public class IdBasedExtendIterator implements Iterator<SolutionMapping> {
     public SolutionMapping next() {
         final SolutionMapping solMap = input.next();
         solMap.set(var, key);
+        for(int i=0; i<solMap.size(); i++){
+            System.out.println(i + ": " + solMap.get(i));
+        }
+
         return solMap;
     }
 }

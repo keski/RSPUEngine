@@ -1,28 +1,23 @@
 """
 Author: Robin Keskisärkkä
-Description:
+
 This script can be used to generate uncertain data streams. The generated streams are aligned with respect to time, and
-change with respect to "triggers" on a timeline. Each trigger results in a change in the values for the generated
-events, allowing specific scenarios to be used to as guide for the generated streams.
+change with respect to "triggers" on a timeline. Each trigger results in a change in the mean values for the generated
+events, allowing specific scenarios to be used to as a reference for the generated streams.
 
-Each streamed is written to a separate file, with each streamed element written to a single line in trigs syntax.
-
-The uncertainty and stream rate associated with each stream can configured by modifying the properties.conf.
-
+Each stream is written to a separate file, and each streamed element is written to a single line in trigs syntax.
 """
-
 
 import re
 from datetime import datetime
-import time as t
 import numpy as np
 import matplotlib.pyplot as plt
 import skfuzzy as fuzz
 
 from mako.template import Template
 
-
 np.random.seed(0)
+
 
 # Sensors:
 # - activity: reported by system, no uncertainty
@@ -32,42 +27,44 @@ np.random.seed(0)
 # - oxygen saturation: 1 sensor on body
 
 
-def main_():
-    # Generate universe variables
-    #   * Quality and service on subjective ranges [0, 10]
-    #   * Tip has a range of [0, 25] in units of percentage points
-    hr_state = []
-    x_hr = np.arange(0, 201, 1)
+def plot_memberships():
+    # Visualize the membership functions
+    memberships = [
+        ("Breathing rate", get_fuzzy_breathing()),
+        ("Heart rate", get_fuzzy_heart_rate()),
+        ("Oxygen saturation", get_fuzzy_oxygen()),
+        ("Temperature", get_fuzzy_temperature())
+    ]
 
-    # Generate fuzzy membership functions
-    hr_lo = fuzz.trapmf(x_hr, [0, 0, 60, 80])
-    hr_md = fuzz.trapmf(x_hr, [60, 80, 100, 120])
-    hr_hi = fuzz.trapmf(x_hr, [100, 120, 160, 180])
-    hr_vhi = fuzz.trapmf(x_hr, [160, 180, 200, 200])
+    fig, plots = plt.subplots(nrows=2, ncols=2, figsize=(10, 6))
 
-    # Visualize these universes and membership functions
-    fig, ax = plt.subplots(nrows=1, figsize=(8, 9))
+    i = 0
+    colors = ["r", "b", "g", "y"]
+    for i in [0,1]:
+        for j in [0, 1]:
+            name = memberships[i*2+j][0]
+            x, fuzz_dict = memberships[i*2+j][1]
+            c = 0
+            for d in fuzz_dict:
+                plots[i][j].plot(x, d["f"], colors[c], linewidth=1.5, label=d["event_type"])
+                c += 1
+            plots[i][j].set_title(name)
+            plots[i][j].legend()
 
-    ax.plot(x_hr, hr_lo, 'b', linewidth=1.5, label='Low')
-    ax.plot(x_hr, hr_md, 'g', linewidth=1.5, label='Medium')
-    ax.plot(x_hr, hr_hi, 'r', linewidth=1.5, label='High')
-    ax.plot(x_hr, hr_vhi, 'y', linewidth=1.5, label='VeryHigh')
-    ax.set_title('Heart rate')
-    ax.legend()
-
-    # Turn off top/right axes
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.get_xaxis().tick_bottom()
-    ax.get_yaxis().tick_left()
+            # Turn off top/right axes
+            plots[i][j].spines['top'].set_visible(False)
+            plots[i][j].spines['right'].set_visible(False)
+            plots[i][j].get_xaxis().tick_bottom()
+            plots[i][j].get_yaxis().tick_left()
 
     plt.tight_layout()
     plt.show()
 
 
-
-
 def main():
+    # uncomment to visualize membership functions
+    # plot_memberships()
+
     normal_sample.__name__ = "Normal"
     uniform_sample.__name__ = "Uniform"
 
@@ -122,9 +119,9 @@ def main():
             "breathing": 14,
             "temperature": 38.8,
             "activity": ":Sleeping"
-        },{
+        }, {
             "duration": 100,
-            "heart_rate": 130,
+            "heart_rate": 165,
             "oxygen": 89,
             "breathing": 25,
             "temperature": 38.8,
@@ -132,13 +129,15 @@ def main():
         },
     ]
 
-    unix_time = t.time()
+    # Set time: 2019-11-27T19:59
+    unix_time = 1574881152
+
     counter = 0
     for x in scenario:
         for i in range(x["duration"]):
             counter += 1
             unix_time += 1
-            timestamp = f"\"{datetime.utcfromtimestamp(unix_time).strftime('%Y-%m-%dT%H:%M:%S')}\"^^xsd:dateTime"
+            timestamp = f"\"{datetime.utcfromtimestamp(unix_time).strftime('%Y-%m-%dT%H:%M:%SZ')}\"^^xsd:dateTime"
 
             event = heart(counter, timestamp, x["heart_rate"], 5)
             heart_f.write(re.sub("\\s+", " ", event) + "\n")
@@ -157,10 +156,29 @@ def main():
 
     heart_f.close()
     oxygen_f.close()
+    breathing_f.close()
+    temperature_f.close()
+    activity_f.close()
+
+
+def eval_fuzzy(fuzzy_list, sample):
+    x = {}
+    event_types = {}
+    p_max = 0
+    for fuzzy in fuzzy_list:
+        p = fuzzy["f"][sample]
+        event_types[fuzzy["event_type"]] = p
+        if p > p_max:
+            x["state"] = fuzzy["state"]
+            p_max = p
+
+    x["event_types"] = event_types
+    return x
 
 
 def heart(i, timestamp, mean, stddev, person="person1", sensor="hr/sensor1"):
-    sample = int(normal_sample(mean, stddev))
+    sample = int(normal_sample(mean, stddev, decimals=0))
+    x = eval_fuzzy(get_fuzzy_heart_rate()[1], sample)
     data = {
         "graph": f"_:g{i}",
         "observation": f"_:b{i}",
@@ -169,17 +187,18 @@ def heart(i, timestamp, mean, stddev, person="person1", sensor="hr/sensor1"):
         "observed_property": f"<{person}/HeartRate>",
         "value": sample,
         "value_error": f"\"Normal(0,{stddev})\"^^rspu:distribution",
-        "unc_type": get_fuzzy_heart_event_type(sample),
+        "unc_type": x["event_types"],
         "time": timestamp,
         "state_type": ":HeartRate",
-        "state": get_hr_state(sample)
+        "state": x["state"]
     }
-    template = Template(filename='heart.template')
+    template = Template(filename='templates/heart.template')
     return template.render(data=data)
 
 
 def oxygen(i, timestamp, mean, error, person="person1", sensor="oxygen/sensor1"):
-    sample = int(uniform_sample(mean-error, mean+error))
+    sample = int(uniform_sample(mean - error, mean + error))
+    x = eval_fuzzy(get_fuzzy_oxygen()[1], sample)
     data = {
         "graph": f"_:g{i}",
         "observation": f"_:b{i}",
@@ -188,17 +207,19 @@ def oxygen(i, timestamp, mean, error, person="person1", sensor="oxygen/sensor1")
         "observed_property": f"<{person}/OxygenSaturation>",
         "value": sample,
         "value_error": f"\"Uniform({-error},{error})\"^^rspu:distribution",
-        "unc_type": get_fuzzy_oxygen_event_type(sample),
+        "unc_type": x["event_types"],
         "time": timestamp,
         "state_type": ":OxygenSaturation",
-        "state": get_oxygen_state(sample)
+        "state": x["state"]
     }
-    template = Template(filename='oxygen.template')
+    template = Template(filename='templates/oxygen.template')
     return template.render(data=data)
 
 
 def breathing(i, timestamp, mean, error, person="person1", sensor="breathing/sensor1"):
-    sample = int(uniform_sample(mean-error, mean+error))
+    sample = int(uniform_sample(mean - error, mean + error))
+
+    x = eval_fuzzy(get_fuzzy_breathing()[1], sample)
     data = {
         "graph": f"_:g{i}",
         "observation": f"_:b{i}",
@@ -207,17 +228,19 @@ def breathing(i, timestamp, mean, error, person="person1", sensor="breathing/sen
         "observed_property": f"<{person}/BreathingRate>",
         "value": sample,
         "value_error": f"\"Uniform({-error},{error})\"^^rspu:distribution",
-        "unc_type": get_fuzzy_breathing_event_type(sample),
+        "unc_type": x["event_types"],
         "time": timestamp,
         "state_type": ":BreathingRate",
-        "state": get_breathing_state(sample)
+        "state": x["state"]
     }
-    template = Template(filename='breathing.template')
+    template = Template(filename='templates/breathing.template')
     return template.render(data=data)
 
 
 def temperature(i, timestamp, mean, stddev, person="person1", sensor="temperature/sensor1"):
-    sample = int(normal_sample(mean, stddev))
+    sample = normal_sample(mean, stddev, decimals=1)
+
+    x = eval_fuzzy(get_fuzzy_temperature()[1], int(sample*10))
     data = {
         "graph": f"_:g{i}",
         "observation": f"_:b{i}",
@@ -226,12 +249,12 @@ def temperature(i, timestamp, mean, stddev, person="person1", sensor="temperatur
         "observed_property": f"<{person}/Temperature>",
         "value": sample,
         "value_error": f"\"Normal(0,0.5)\"^^rspu:distribution",
-        "unc_type": get_fuzzy_temperature_event_type(sample),
+        "unc_type": x["event_types"],
         "time": timestamp,
         "state_type": ":Temperature",
-        "state": get_temperature_state(sample)
+        "state": x["state"]
     }
-    template = Template(filename='temperature.template')
+    template = Template(filename='templates/temperature.template')
     return template.render(data=data)
 
 
@@ -247,80 +270,31 @@ def activity(i, timestamp, doing, person="person1", sensor="activity/sensor1"):
         "state_type": ":Activity",
         "state": doing
     }
-    template = Template(filename='activity.template')
+    template = Template(filename='templates/activity.template')
     return template.render(data=data)
 
 
-def get_hr_state(value):
+def get_fuzzy_heart_rate():
     """
-    Returns the most probable state of the Heart Rate node, given a numeric value.
-    :param value: mean of heart rate
+     Returns a fuzzy representation of  heart rate.
     :return:
     """
-    x_hr = np.arange(0, 201, 1)
+    x = np.arange(0, 300, 1)
     # Fuzzy membership functions
-    hr_lo = fuzz.trapmf(x_hr, [0, 0, 60, 80])
-    hr_md = fuzz.trapmf(x_hr, [60, 80, 100, 120])
-    hr_hi = fuzz.trapmf(x_hr, [100, 120, 160, 180])
-    hr_vhi = fuzz.trapmf(x_hr, [160, 180, 200, 200])
+    low = fuzz.trapmf(x, [0, 0, 60, 80])
+    medium = fuzz.trapmf(x, [60, 80, 100, 120])
+    high = fuzz.trapmf(x, [100, 120, 160, 180])
+    very_high = fuzz.trapmf(x, [160, 180, 300, 300])
 
-    event_types = [":Low", ":Normal", ":High", ":VeryHigh"]
-    probs = [hr_lo[value], hr_md[value], hr_hi[value], hr_vhi[value]]
-    return event_types[np.argmax(probs)]
+    return (x, [{"state": ":Low", "event_type": ":LowHeartRateEvent", "f": low},
+                {"state": ":Normal", "event_type": ":NormalHeartRateEvent", "f": medium},
+                {"state": ":High", "event_type": ":HighHeartRateEvent", "f": high},
+                {"state": ":VeryHigh", "event_type": ":VeryHighHeartRateEvent", "f": very_high}])
 
 
-def get_fuzzy_heart_event_type(value):
+def get_fuzzy_breathing():
     """
-    Returns the fuzzy event types of heart rate observations.
-    :param value: mean of heart rate
-    :return:
-    """
-    x_hr = np.arange(0, 201, 1)
-    # Fuzzy membership functions
-    hr_lo = fuzz.trapmf(x_hr, [0, 0, 60, 80])
-    hr_md = fuzz.trapmf(x_hr, [60, 80, 100, 120])
-    hr_hi = fuzz.trapmf(x_hr, [100, 120, 160, 180])
-    hr_vhi = fuzz.trapmf(x_hr, [160, 180, 200, 200])
-
-    return {":LowHeartRateEvent": hr_lo[value],
-            ":NormalHeartRateEvent": hr_md[value],
-            ":HighHeartRateEvent": hr_hi[value],
-            ":VeryHighHeartRateEvent": hr_vhi[value]}
-
-
-def get_oxygen_state(value):
-    """
-    Returns the most probable state of the oxygen saturation node, given a numeric value.
-    :param value: mean of oxygen saturation
-    :return:
-    """
-    x = np.arange(0, 100, 1)
-    # Fuzzy membership functions
-    low = fuzz.trapmf(x, [0, 0, 88, 90])
-    normal = fuzz.trapmf(x, [88, 92, 100, 100])
-
-    states = [":Low", ":Normal"]
-    probs = [low[value], normal[value]]
-    return states[np.argmax(probs)]
-
-
-def get_fuzzy_oxygen_event_type(value):
-    """
-    Returns the fuzzy event types of heart rate observations.
-    :param value: mean of heart rate
-    :return:
-    """
-    x = np.arange(0, 100, 1)
-    # Fuzzy membership functions
-    low = fuzz.trapmf(x, [0, 0, 88, 90])
-    normal = fuzz.trapmf(x, [88, 92, 100, 100])
-    return {":LowOxygenSaturationEvent": low[value], ":NormalOxygenSaturationEvent": normal[value]}
-
-
-def get_breathing_state(value):
-    """
-    Returns the most probable state of the oxygen saturation node, given a numeric value.
-    :param value: mean of oxygen saturation
+     Returns a fuzzy representation of  heart rate.
     :return:
     """
     x = np.arange(0, 60, 1)
@@ -329,58 +303,39 @@ def get_breathing_state(value):
     normal = fuzz.trapmf(x, [8, 12, 16, 20])
     high = fuzz.trapmf(x, [18, 60, 100, 100])
 
-    states = [":Low", ":Normal", ":High"]
-    probs = [low[value], normal[value], high[value]]
-    return states[np.argmax(probs)]
+    return (x, [{"state": ":Low", "event_type": ":SlowBreathingRateEvent", "f": low},
+                {"state": ":Normal", "event_type": ":NormalBreathingRateEvent", "f": normal},
+                {"state": ":High", "event_type": ":ElevatedBreathingRateEvent", "f": high}])
 
 
-def get_fuzzy_breathing_event_type(value):
+def get_fuzzy_oxygen():
     """
-    Returns the fuzzy event types of heart rate observations.
-    :param value: mean of heart rate
-    :return:
-    """
-    x = np.arange(0, 60, 1)
-    # Fuzzy membership functions
-    low = fuzz.trimf(x, [0, 7, 9])
-    normal = fuzz.trapmf(x, [8, 12, 16, 20])
-    high = fuzz.trapmf(x, [18, 60, 100, 100])
-    return { ":SlowBreathingRateEvent": low[value],
-             ":NormalBreathingRateEvent": normal[value],
-             ":ElevatedBreathingRateEvent": high[value]}
-
-
-def get_temperature_state(value):
-    """
-    Returns the most probable state of the temperature saturation node, given a numeric value.
-    :param value: mean of temperature
+    Returns a fuzzy representation of oxygen saturation.
     :return:
     """
     x = np.arange(0, 100, 1)
     # Fuzzy membership functions
-    low = fuzz.trapmf(x, [0, 30, 35, 36])
-    normal = fuzz.trapmf(x, [35, 36, 37.5, 38])
-    high = fuzz.trapmf(x, [37.5, 38, 42, 100])
+    low = fuzz.trapmf(x, [0, 0, 88, 90])
+    normal = fuzz.trapmf(x, [88, 92, 100, 100])
 
-    states = [":Low", ":Normal", ":High"]
-    probs = [low[value], normal[value], high[value]]
-    return states[np.argmax(probs)]
+    return (x, [{"state": ":Low", "event_type": ":LowOxygenSaturationEvent", "f": low},
+                {"state": ":Normal", "event_type": ":NormalOxygenSaturationEvent", "f": normal}])
 
 
-def get_fuzzy_temperature_event_type(value):
+def get_fuzzy_temperature():
     """
-    Returns the fuzzy event types of temperature observations.
-    :param value: mean of temperature
+    Returns a fuzzy representation of body temperature.
     :return:
     """
-    x = np.arange(0, 100, 1)
+    x = np.arange(0, 450, 1)
     # Fuzzy membership functions
-    low = fuzz.trapmf(x, [0, 30, 35, 36])
-    normal = fuzz.trapmf(x, [35, 36, 37.5, 38])
-    high = fuzz.trapmf(x, [37.5, 38, 42, 100])
-    return { ":SlowBreathingRateEvent": low[value],
-             ":NormalBreathingRateEvent": normal[value],
-             ":ElevatedBreathingRateEvent": high[value]}
+    low = fuzz.trapmf(x, [300, 300, 360, 365])
+    normal = fuzz.trapmf(x, [360, 365, 375, 385])
+    high = fuzz.trapmf(x, [375, 385, 420, 450])
+
+    return (x, [{"state": ":Low", "event_type": ":LowTemperatureEvent", "f": low},
+                {"state": ":Normal", "event_type": ":NormalTemperatureEvent", "f": normal},
+                {"state": ":High", "event_type": ":HighTemperatureEvent", "f": high}])
 
 
 def normal_sample(mu, sigma, decimals=2):
@@ -393,4 +348,3 @@ def uniform_sample(lower, upper, decimals=2):
 
 if __name__ == '__main__':
     main()
-

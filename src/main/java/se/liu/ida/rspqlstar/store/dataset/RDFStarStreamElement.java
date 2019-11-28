@@ -1,8 +1,12 @@
 package se.liu.ida.rspqlstar.store.dataset;
 
+import org.apache.jena.datatypes.xsd.XSDDateTime;
 import org.apache.jena.graph.Node;
+import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.graph.Node_Triple;
 import org.apache.jena.graph.Triple;
+import org.apache.jena.rdf.model.Property;
+import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.riot.system.StreamRDF;
 import org.apache.jena.sparql.core.Quad;
 import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.NodeDictionary;
@@ -19,11 +23,16 @@ import java.util.Iterator;
 public class RDFStarStreamElement implements StreamRDF {
     public Index index;
     public long time;
+    public static Node timeProperty = NodeFactory.createURI("http://www.w3.org/ns/prov#generatedAtTime");
     final NodeDictionary nd = NodeDictionaryFactory.get();
     final ReferenceDictionary refT = ReferenceDictionaryFactory.get();
 
+    public RDFStarStreamElement(){
+        this(null);
+    }
+
     public RDFStarStreamElement(Date time){
-        this.time = time.getTime();
+        this.time = time != null ? time.getTime() : 0;
         index = new HashIndex(Field.G, Field.S, Field.P, Field.O);
     }
 
@@ -42,7 +51,13 @@ public class RDFStarStreamElement implements StreamRDF {
 
     private IdBasedQuad addQuad(Quad quad) {
         Node graph = quad.getGraph();
+        if(graph == null){
+            if(quad.getPredicate().equals(timeProperty)){
+                time = ((XSDDateTime) quad.getObject().getLiteral().getValue()).asCalendar().getTimeInMillis();
+            }
+        }
         graph = graph == null ? Quad.defaultGraphNodeGenerated : graph;
+
         final Node subject = quad.getSubject();
         final Node predicate = quad.getPredicate();
         final Node object = quad.getObject();

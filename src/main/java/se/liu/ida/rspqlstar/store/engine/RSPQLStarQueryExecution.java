@@ -6,7 +6,6 @@ import org.apache.jena.riot.ResultSetMgr;
 import org.apache.jena.riot.resultset.ResultSetLang;
 import org.apache.jena.sparql.engine.*;
 import org.apache.log4j.Logger;
-import se.liu.ida.rspqlstar.function.BayesianNetwork;
 import se.liu.ida.rspqlstar.query.RSPQLStarQuery;
 import se.liu.ida.rspqlstar.store.dataset.StreamingDatasetGraph;
 import se.liu.ida.rspqlstar.util.TimeUtil;
@@ -22,8 +21,8 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
     private boolean closed;
     private boolean stop = false;
 
-    // Collection of experiment results
-    public ArrayList<Long> expResults = new ArrayList<>();
+    // Collected execution times
+    public ArrayList<Long> executionTimes = new ArrayList<>();
 
     public RSPQLStarQueryExecution(RSPQLStarQuery query, StreamingDatasetGraph sdg){
         this(query, DatasetFactory.wrap(sdg));
@@ -101,11 +100,15 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
             final long execTime = System.nanoTime() - t0;
             out.printf("Query executed in %s ms\n\n", execTime/1_000_000);
 
-            // save
-            expResults.add(execTime);
+            // save execution time
+            executionTimes.add(execTime);
 
             long delay = query.getComputedEvery().toMillis() - execTime/(1_000_000);
-            if(delay > 0) TimeUtil.silentSleep(delay);
+            if(delay > 0) {
+                TimeUtil.silentSleep(delay);
+            } else {
+                System.err.println("Query overload! No delay between executions.");
+            }
             //busyWaitMillisecond(query.getComputedEvery().toMillis() - execTime/(1_000_000));
         }
     }

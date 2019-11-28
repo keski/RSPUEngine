@@ -3,8 +3,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>se.liu.ida.rdfstar</groupId>
-    <artifactId>RSPQLStarStore</artifactId>
-    <version>0.0.1</version>
+    <artifactId>RSPUEngine</artifactId>
+    <version>1.0.0</version>
 
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
