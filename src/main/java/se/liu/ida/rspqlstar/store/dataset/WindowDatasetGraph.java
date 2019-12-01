@@ -23,11 +23,11 @@ public class WindowDatasetGraph extends DatasetGraphStar {
     public long cachedUpperBound = -1;
     public DatasetGraphStar cachedDatasetGraph;
 
-    public WindowDatasetGraph(String name, Duration width, Duration step, Date startTime, RDFStarStream rdfStream){
+    public WindowDatasetGraph(String name, Duration width, Duration step, long startTime, RDFStarStream rdfStream){
         this.name = name;
         this.width = width.toMillis();
         this.step = step.toMillis();
-        this.startTime = startTime.getTime();
+        this.startTime = startTime;
         this.rdfStream = rdfStream;
     }
 
@@ -53,8 +53,8 @@ public class WindowDatasetGraph extends DatasetGraphStar {
         return startTime + width + n * step;
     }
 
-    public Iterator<IdBasedQuad> iterate(Date time){
-        return getDataset(time.getTime()).iterateAll();
+    public Iterator<IdBasedQuad> iterate(long time){
+        return getDataset(time).iterateAll();
     }
 
     public String toString(){

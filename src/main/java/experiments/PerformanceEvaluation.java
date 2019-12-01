@@ -14,14 +14,15 @@ import se.liu.ida.rspqlstar.store.dataset.StreamingDatasetGraph;
 import se.liu.ida.rspqlstar.store.dictionary.IdFactory;
 import se.liu.ida.rspqlstar.store.dictionary.VarDictionary;
 import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.NodeDictionaryFactory;
+import se.liu.ida.rspqlstar.store.dictionary.referencedictionary.ReferenceDictionary;
+import se.liu.ida.rspqlstar.store.dictionary.referencedictionary.ReferenceDictionaryFactory;
 import se.liu.ida.rspqlstar.store.engine.RSPQLStarEngine;
 import se.liu.ida.rspqlstar.store.engine.RSPQLStarQueryExecution;
 import se.liu.ida.rspqlstar.stream.StreamFromFile;
 import se.liu.ida.rspqlstar.util.TimeUtil;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
+import java.io.*;
+import java.sql.Time;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -29,8 +30,8 @@ import java.util.Date;
 import static se.liu.ida.rspqlstar.util.Utils.*;
 
 public class PerformanceEvaluation {
-    private static Logger logger = Logger.getLogger(PerformanceEvaluation.class);
-    private static boolean log = false;
+    private static Logger logger = Logger.getLogger("ResultLogger");
+    public static String root = "/Users/robke04/Documents/Git_projects/RSPQLStar/RSPU/RSPUEngine/";
 
     public static void main(String[] args) throws IOException {
         RSPQLStarEngine.register();
@@ -39,10 +40,10 @@ public class PerformanceEvaluation {
         // Namespaces
         String rspuNS = "http://w3id.org/rsp/rspu#";
         String rspuFnNs = "http://w3id.org/rsp/rspu/fn#";
-        String bnNs = "http://w3id.org/rsp/rspu/bn#";
+        String bnNs = "http://www.example.org/ontology#";
 
         // Bayes
-        BayesianNetwork.loadNetwork("http://example.org/bn/farida", bnNs, "src/main/resources/use-case/farida.xdsl");
+        BayesianNetwork.loadNetwork("http://example.org/bn/farida", bnNs, root + "data/performance-eval/medical.xdsl");
         FunctionRegistry.get().put(rspuFnNs + "belief", BayesianNetwork.belief);
         FunctionRegistry.get().put(rspuFnNs + "map", BayesianNetwork.map);
 
@@ -62,52 +63,56 @@ public class PerformanceEvaluation {
         FunctionRegistry.get().put(rspuFnNs + "subtract", Probability.subtract);
 
         // Time offset should match the reference time used in the stream generator
-        long offset = 1574881152000L;
-        log = true;
-        logger.info("type;stream rate;avg execution time;stddev;memory;#results\n");
-        long timeOutAfter = 1000 * 60 * 5; // 30 seconds
+        long ref_time = 1574881152000L;
+
+        logger.info("unc_type\trate\ttime_avg\ttime_stddev\tmemory\n");
+        long timeOutAfter = 1000 * 60 * 3; // calc only by the last minute
+        // Note: For high stream rates performance will deteriorate over time.
 
         // Probability distribution query
-        for(int rate=1; rate <= 1; rate++) { // events/sec
-            reset();
-            logger.info(String.format("PD;%s;", rate));
-            TimeUtil.setOffset(new Date().getTime() - offset);
-            run(rate, "performance-eval/query.rspqlstar", timeOutAfter);
-        }
+        int[] rates = new int[]{
+                100, 200, 300, 400, 500,
+                600, 700, 800, 900, 1000,
+                1100, 1200, 1300, 1400, 1500,
+                1600, 1700, 1800, 1900, 2000};
+        String[] unc_types = new String[]{
+                //"all",
+                "baseline",
+                "baseline",
+                "fuzzy",
+                "probability",
+                "bayes"
+        };
 
-        /*
-        for(int i=1; i < 11; i++) {
-            reset();
-            logger.info(String.format("Reification (naive);%s;", i));
-            TimeUtil.setOffset(new Date().getTime() - 1556617861000L);
-            run(i, "reification", timeOutAfter, false);
+        for (int rate : rates) {
+            for(String unc_type : unc_types){
+                logger.info(String.format("%s\t%s\t", unc_type, rate));
+                run(rate, unc_type, timeOutAfter, ref_time);
+                reset();
+            }
         }
-
-        for(int i=1; i < 11; i++) {
-            reset();
-            logger.info(String.format("RDFStar;%s;", i));
-            TimeUtil.setOffset(new Date().getTime() - 1556617861000L);
-            run(i, "rdfstar", timeOutAfter, false);
-        }
-        */
     }
 
-    public static void run(int streamRate, String queryFile, long timeOutAfter) throws IOException {
+    public static void run(int rate, String unc_type, long timeOutAfter, long ref_time) throws IOException {
+        TimeUtil.setOffset(new Date().getTime() - ref_time);
+
+        String queryFile = String.format(root + "data/performance-eval/query-%s.rspqlstar", unc_type);
         final String qString = readFile(queryFile);
         final RSPQLStarQuery query = (RSPQLStarQuery) QueryFactory.create(qString, RSPQLStar.syntax);
 
-        // Stream
-        final RDFStarStream rdfStream = new RDFStarStream("http://ecareathome/stream/heartrate");
         // Create streaming dataset
         final StreamingDatasetGraph sdg = new StreamingDatasetGraph();
+
+        // Add stream
+        final RDFStarStream rdfStream = new RDFStarStream("http://ecareathome/stream/heartrate");
         sdg.registerStream(rdfStream);
 
         // Register query
         final RSPQLStarQueryExecution qexec = new RSPQLStarQueryExecution(query, sdg);
 
         // Start stream
-        final String fileName = "performance-eval/heart.trigs";
-        final StreamFromFile stream = new StreamFromFile(rdfStream, fileName, 1000, 1000/streamRate);
+        final String fileName = String.format(root + "data/performance-eval/streams/heart-%s.trigs", rate);
+        final StreamFromFile stream = new StreamFromFile(rdfStream, fileName, 0);
         stream.start();
 
         // stop gracefully
@@ -116,20 +121,25 @@ public class PerformanceEvaluation {
             stream.stop();
             qexec.stopContinuousSelect();
 
-            if(log) {
-                long[] results = asArray(qexec.executionTimes);
-                results = Arrays.copyOfRange(results, 10, results.length);
-                logger.info(calculateMean(results)/1000_000.0);
-                logger.info(";");
-                logger.info(calculateStandardDeviation(results)/1000_000.0);
-                logger.info("\n");
-            }
+            long[] results = asArray(qexec.executionTimes);
+            results = Arrays.copyOfRange(results, results.length-61, results.length-1);
+            logger.info(calculateMean(results)/1000_000.0);
+            logger.info("\t");
+            logger.info(calculateStandardDeviation(results)/1000_000.0);
+            logger.info("\t");
+            logger.info(getReallyUsedMemory() + " MB");
+            logger.info("\n");
         }).start();
 
         // Start query
-        PrintStream ps = new PrintStream(new ByteArrayOutputStream());
-        ps = System.out;
-        qexec.execContinuousSelect(ps);
+        PrintStream ps = new PrintStream(new FileOutputStream(new File(String.format("output/%s-%s.txt", unc_type, rate))));
+        //ps = System.out;
+        System.out.println("########################### Running " + unc_type + " with stream rate " + rate + " event/s");
+
+        ps.println(unc_type + " with stream rate " + rate + " event/s");
+        qexec.execContinuousSelect(ps, ref_time);
+        ps.flush();
+        ps.close();
     }
 
     /**
@@ -137,10 +147,12 @@ public class PerformanceEvaluation {
      */
     public static void reset(){
         NodeDictionaryFactory.get().clear();
+        ReferenceDictionaryFactory.get().clear();
         IdFactory.reset();
         VarDictionary.reset();
         // used make sure gc has been run
         getReallyUsedMemory();
+        TimeUtil.silentSleep(5000);
     }
 
     public static long[] asArray(ArrayList<Long> list){

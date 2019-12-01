@@ -108,10 +108,6 @@ public class BayesianNetwork {
         public void checkBuild(String s, ExprList exprList) {}
     };
 
-    public static double getMAP(String bn, String nodeUri, String... evidence){
-        return 0;
-    }
-
     public static double getOutcome(Network bn, NodeValue targetNode, NodeValue targetNodeState, List<NodeValue> evidence){
         return getOutcomes(bn, targetNode, evidence).get(targetNodeState);
     }

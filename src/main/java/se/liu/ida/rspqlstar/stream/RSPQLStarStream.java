@@ -8,15 +8,12 @@ public abstract class RSPQLStarStream implements Runnable {
     static public final String BASE = "http://base/";
     protected boolean stop = false;
     protected final RDFStarStream rdfStream;
-    protected final long totalDelay;
 
     /**
      * @param rdfStream
-     * @param totalDelay
      */
-    public RSPQLStarStream(RDFStarStream rdfStream, long totalDelay){
+    public RSPQLStarStream(RDFStarStream rdfStream){
         this.rdfStream = rdfStream;
-        this.totalDelay = totalDelay;
     }
 
     /**

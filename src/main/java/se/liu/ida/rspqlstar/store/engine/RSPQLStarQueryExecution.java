@@ -11,7 +11,9 @@ import se.liu.ida.rspqlstar.store.dataset.StreamingDatasetGraph;
 import se.liu.ida.rspqlstar.util.TimeUtil;
 
 import java.io.PrintStream;
+import java.sql.Time;
 import java.util.ArrayList;
+import java.util.Date;
 
 public class RSPQLStarQueryExecution extends QueryExecutionBase {
     private final Logger logger = Logger.getLogger(RSPQLStarQuery.class);
@@ -79,37 +81,46 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
     /**
      * Run periodic execution of query.
      * @param out
+     * @param ref_time: The time for the first query execution.
      */
-    public void execContinuousSelect(PrintStream out) {
+    public void execContinuousSelect(PrintStream out, long ref_time) {
+        long next_execution = ref_time;
         stop = false;
         while(!stop) {
+            // sleep until ref_time
+            long sleep = next_execution - TimeUtil.getTime().getTime();
+            if(sleep > 0){
+                //System.out.println("Wait for next execution: " + sleep + " ms");
+                TimeUtil.silentSleep(sleep);
+            } else {
+                System.out.println("Overload! No time to execute!");
+            }
+            sdg.setTime(next_execution);
+            TimeUtil.silentSleep(10); // delay 10 ms before executing
             final long t0 = System.nanoTime();
-            sdg.setTime(TimeUtil.getTime());
+            //if(sdg.iterator().hasNext())
+            //    sdg.getWindowDataset("http://base/w").GSPO.iterateAll().forEachRemaining(System.err::println);
+
             final RSPQLStarQueryExecution exec = new RSPQLStarQueryExecution(query, sdg);
             final ResultSet rs = exec.execSelect();
-
-            out.printf("Application time: %s\n", TimeUtil.df.format(sdg.getTime()));
-            if(!rs.hasNext()){
-                out.println("| Empty result |");
-            }
-            else {
-                ResultSetMgr.write(out, rs, ResultSetLang.SPARQLResultSetText);
+            //System.out.println(next_execution + "\n");
+            String line = "";
+            if(rs.hasNext()){
+                if(rs.getResultVars().size() == 1) {
+                    String count = rs.next().get("count").asLiteral().getLexicalForm();
+                    line += "Results: " + count + "\t";
+                } else {
+                    ResultSetMgr.write(out, rs, ResultSetLang.SPARQLResultSetText);
+                }
             }
             exec.close();
 
             final long execTime = System.nanoTime() - t0;
-            out.printf("Query executed in %s ms\n\n", execTime/1_000_000);
-
-            // save execution time
+            line += (execTime/1_000_000) + " ms";
             executionTimes.add(execTime);
-
-            long delay = query.getComputedEvery().toMillis() - execTime/(1_000_000);
-            if(delay > 0) {
-                TimeUtil.silentSleep(delay);
-            } else {
-                System.err.println("Query overload! No delay between executions.");
-            }
-            //busyWaitMillisecond(query.getComputedEvery().toMillis() - execTime/(1_000_000));
+            out.println(line);
+            System.out.println(line);
+            next_execution += query.getComputedEvery().toMillis();
         }
     }
 

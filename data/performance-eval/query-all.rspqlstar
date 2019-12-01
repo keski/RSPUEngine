@@ -1,0 +1,35 @@
+# Query demonstrating all uncertainty types over a single event stream.
+# - Fuzzy: The degree to which either HighHeartRateEvent OR VeryHighHeartRateEvent is true
+# - Probability: The probability that the heart rate is above the threshold of 100 beats/min
+# - Bayes: The most likely medical status (Normal or Abnormal) given the heart-rate state as evidence.
+
+BASE <http://base/>
+PREFIX : <http://www.example.org/ontology#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX rspu: <http://w3id.org/rsp/rspu#>
+PREFIX rspu-fn: <http://w3id.org/rsp/rspu/fn#>
+PREFIX bn-ns: <http://w3id.org/rsp/rspu/bn#>
+
+REGISTER STREAM <all> COMPUTED EVERY PT1S AS
+
+SELECT ?event ?hr ?state ?degree1 ?degree2 ?unc1 ?unc2 ?unc3
+FROM NAMED WINDOW <w> ON <http://ecareathome/stream/heartrate> [RANGE PT1S STEP PT1S]
+WHERE {
+   WINDOW <w> {
+      GRAPH ?g {
+          ?event a :HeartRate .
+          ?event sosa:hasSimpleResult ?hr .
+          << ?event a ?node >> rspu:hasState ?state .
+          << ?event a :HighHeartRateEvent >> rspu:degree ?degree1 .
+          << ?event a :VeryHighHeartRateEvent >> rspu:degree ?degree2 .
+
+          # Fuzzy
+          BIND(rspu-fn:disjunction(?degree1, ?degree2) AS ?unc1)
+          # Probability
+          BIND(rspu-fn:greaterThan(?hr, 100) AS ?unc2)
+          # Bayes
+          BIND(rspu-fn:map(<http://example.org/bn/farida>, :MedicalStatus, ?node, ?state) AS ?unc3)
+      }
+   }
+}

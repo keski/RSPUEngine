@@ -1,0 +1,30 @@
+# Query demonstrating the Bayesian Network uncertainty type over a single event stream.
+# Reports the most likely medical status (Normal or Abnormal) given the heart-rate state as evidence
+# and the BN as domain knowledge.
+
+BASE <http://base/>
+PREFIX : <http://www.example.org/ontology#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX rspu: <http://w3id.org/rsp/rspu#>
+PREFIX rspu-fn: <http://w3id.org/rsp/rspu/fn#>
+PREFIX bn-ns: <http://w3id.org/rsp/rspu/bn#>
+
+REGISTER STREAM <bayes> COMPUTED EVERY PT1S AS
+
+SELECT (COUNT(?event) AS ?count) #?event ?hr ?state ?degree1 ?degree2 ?unc
+FROM NAMED WINDOW <w> ON <http://ecareathome/stream/heartrate> [RANGE PT1S STEP PT1S]
+WHERE {
+   WINDOW <w> {
+      GRAPH ?g {
+          ?event a :HeartRate .
+          ?event sosa:hasSimpleResult ?hr .
+          << ?event a ?node >> rspu:hasState ?state .
+          << ?event a :HighHeartRateEvent >> rspu:degree ?degree1 .
+          << ?event a :VeryHighHeartRateEvent >> rspu:degree ?degree2 .
+
+          # Bayes
+          BIND(rspu-fn:map(<http://example.org/bn/farida>, :MedicalStatus, ?node, ?state) AS ?unc)
+      }
+   }
+}

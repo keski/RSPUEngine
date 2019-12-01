@@ -4,13 +4,21 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
+import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 
 public class Utils {
 
     public static String readFile(String fileName) throws IOException {
-        ClassLoader classLoader = ClassLoader.getSystemClassLoader();
-        File file = new File(classLoader.getResource(fileName).getFile());
+        if(fileName.startsWith("/")){
+            return new String(Files.readAllBytes(Paths.get(fileName)));
+        }
+        final URL url = Utils.class.getClassLoader().getResource(fileName);
+        if(url == null) {
+            throw new IllegalStateException("File not found: " + fileName) ;
+        }
+        final File file = new File(url.getFile());
         return new String(Files.readAllBytes(file.toPath()));
     }
 

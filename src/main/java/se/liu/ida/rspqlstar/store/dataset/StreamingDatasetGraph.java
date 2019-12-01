@@ -7,6 +7,7 @@ import org.apache.jena.sparql.core.Quad;
 import se.liu.ida.rspqlstar.lang.NamedWindow;
 import se.liu.ida.rspqlstar.query.RSPQLStarQuery;
 import se.liu.ida.rspqlstar.store.index.IdBasedQuad;
+import se.liu.ida.rspqlstar.util.TimeUtil;
 
 import java.time.Duration;
 import java.util.*;
@@ -20,7 +21,7 @@ public class StreamingDatasetGraph extends AbstractDatasetGraph {
     private Map<String, WindowDatasetGraph> windows = new HashMap<>();
     public Map<String, RDFStarStream> rdfStreams = new HashMap<>();
     private DatasetGraphStar activeDataset = baseDataset;
-    private Date time = new Date();
+    private long time = TimeUtil.getTime().getTime();
     private boolean ready = false;
 
     /**
@@ -76,12 +77,13 @@ public class StreamingDatasetGraph extends AbstractDatasetGraph {
         return activeDataset;
     }
 
-    public void setTime(Date time){
+    public void setTime(long time){
         this.time = time;
+        //System.out.println("SDG set time: " + time);
         //windows.values().forEach(w -> w.getDataset(time.getTime()));
     }
 
-    public Date getTime(){
+    public long getTime(){
         return time;
     }
 
@@ -125,7 +127,7 @@ public class StreamingDatasetGraph extends AbstractDatasetGraph {
         if(dsg == null){
             throw new IllegalStateException("The named window " + name + " does not exist.");
         }
-        activeDataset = dsg.getDataset(time.getTime());
+        activeDataset = dsg.getDataset(time);
     }
 
     public void useBaseDataset() {
@@ -137,7 +139,7 @@ public class StreamingDatasetGraph extends AbstractDatasetGraph {
         if(dsg == null){
             throw new IllegalStateException("The named window " + name + " does not exist.");
         }
-        return dsg.getDataset(time.getTime());
+        return dsg.getDataset(time);
     }
 
     public boolean isReady() {

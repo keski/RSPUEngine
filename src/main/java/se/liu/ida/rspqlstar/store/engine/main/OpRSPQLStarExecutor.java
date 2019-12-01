@@ -12,6 +12,7 @@ import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.binding.Binding;
+import org.apache.jena.sparql.engine.iterator.QueryIterAssign;
 import org.apache.jena.sparql.engine.main.OpExecutor;
 import org.apache.jena.sparql.engine.main.OpExecutorFactory;
 import org.apache.jena.sparql.expr.Expr;
@@ -154,6 +155,8 @@ public class OpRSPQLStarExecutor extends OpExecutor {
     }
 
     private Iterator<SolutionMapping> execute(OpExtend opExtend, Iterator<SolutionMapping> input) {
+        Iterator<SolutionMapping> iter1 = executeIdBasedOp(opExtend.getSubOp(), input);
+
         Iterator<SolutionMapping> iter;
 
         // regular extend
@@ -163,18 +166,20 @@ public class OpRSPQLStarExecutor extends OpExecutor {
 
         if(expr instanceof ExprVar){
             int var2 = encode(expr.getExprVar().asVar()); // should now already have been assigned a value
-            iter = new IdBasedVarToVarExtendIterator(encode(var), var2, input, execCxt);
+            iter = new IdBasedVarToVarExtendIterator(encode(var), var2, iter1, execCxt);
             //throw new IllegalStateException("Binding variable to variable is currently not supported.");
         } else if(expr instanceof ExprFunction) {
-            System.err.println(opExtend.getSubOp().getName());
-            encode(var); // add the var to var dictionary
-            iter = new EncodeBindingsIterator(exec(opExtend, new DecodeBindingsIterator(input, execCxt)), execCxt);
+            encode(var); // add the var to varDict
+            QueryIterator qIter = new DecodeBindingsIterator(iter1, execCxt);
+            QueryIterator qIter2 = new QueryIterAssign(qIter, opExtend.getVarExprList(), this.execCxt, true);
+            iter = new EncodeBindingsIterator(qIter2, execCxt);
+            //iter = new EncodeBindingsIterator(exec(opExtend, qIter), execCxt);
         } else {
             final Node node = ((NodeValue) expr).asNode();
             final Long id = encode(node);
             // use NodeWrapperKey if the value cannot be encoded
             key = id != null ? new Key(id) : new NodeWrapperKey(node);
-            iter = new IdBasedExtendIterator(encode(var), key, input, execCxt);
+            iter = new IdBasedExtendIterator(encode(var), key, iter1, execCxt);
         }
         return iter;
     }
@@ -219,6 +224,12 @@ public class OpRSPQLStarExecutor extends OpExecutor {
         } else if (op instanceof OpSequence) {
             iterator = execute((OpSequence) op, input);
         } else if (op instanceof OpExtend) {
+            // opExtend should be treated similarly to a join
+            //Iterator<SolutionMapping> iter = executeIdBasedOp(((OpExtend) op).getSubOp(), input);
+            //iterator = execute((OpExtend) op, iter);
+            iterator = execute((OpExtend) op, input);
+
+            // new EncodeBindingsIterator(execute((OpExtend) opLeft, new DecodeBindingsIterator(iter, execCxt)), execCxt);
             /*
             OpExtend opExtend = (OpExtend) op;
             System.err.println("OpExtend with subop: " + ((OpExtend) op).getSubOp().getName());

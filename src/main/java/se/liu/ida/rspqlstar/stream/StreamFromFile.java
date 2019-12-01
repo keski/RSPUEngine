@@ -26,28 +26,33 @@ public class StreamFromFile extends RSPQLStarStream {
      * @param rdfStream
      * @param fileName
      * @param initialDelay
-     * @param totalDelay
      */
-    public StreamFromFile(RDFStarStream rdfStream, String fileName, long initialDelay, long totalDelay) {
-        super(rdfStream, totalDelay);
+    public StreamFromFile(RDFStarStream rdfStream, String fileName, long initialDelay) {
+        super(rdfStream);
         this.fileName = fileName;
         this.initialDelay = initialDelay;
     }
 
     @Override
     public void run() {
-        final URL url = getClass().getClassLoader().getResource(fileName);
-        if(url == null) {
-            throw new IllegalStateException("File not found: " + fileName) ;
+
+        final File file;
+        if(fileName.startsWith("/")) {
+            file = new File(fileName);
+        } else {
+            final URL url = getClass().getClassLoader().getResource(fileName);
+            if (url == null) {
+                throw new IllegalStateException("File not found: " + fileName);
+            }
+            file = new File(url.getFile());
         }
-        final File file = new File(url.getFile());
 
         TimeUtil.silentSleep(initialDelay);
         try (Stream linesStream = Files.lines(file.toPath())) {
             final Iterator<String> linesIter = linesStream.iterator();
             while(linesIter.hasNext() && !stop){
                 final String line = linesIter.next();
-                final long t0 = TimeUtil.getTime().getTime();
+
                 if(prefixes == null) {
                     prefixes = line;
                 } else {
@@ -58,8 +63,16 @@ public class StreamFromFile extends RSPQLStarStream {
                             .checking(false)
                             .lang(LangTrigStar.TRIGSTAR)
                             .parse(tg);
-                    long delay = tg.time - t0;
-                    delayedPush(tg, delay < 0 ? 0 : delay);
+
+                    // sleep until tg.time
+                    long sleep = tg.time - TimeUtil.getTime().getTime();
+                    if(sleep > 0){
+                        //System.out.println(tg.time + " <- TG time");
+                        //System.out.println("Stream waiting: " + sleep + " ms");
+                        TimeUtil.silentSleep(sleep);
+                    }
+                    //System.out.println("TG time:      " + tg.time);
+                    push(tg);
                 }
             }
         } catch (IOException e) {

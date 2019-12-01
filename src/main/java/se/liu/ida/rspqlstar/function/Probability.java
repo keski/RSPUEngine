@@ -33,7 +33,6 @@ public class Probability {
     public static FunctionFactory greaterThan = s -> new FunctionBase2() { // greater than
         @Override
         public NodeValue exec(NodeValue nodeValue1, NodeValue nodeValue2) {
-            System.err.println("greaterThan");
             final RealDistribution distribution = getDistribution(nodeValue1);
             final double lower = nodeValue2.getDouble();
             final double probability = distribution.cumulativeProbability(lower); // inclusive
@@ -65,7 +64,6 @@ public class Probability {
     public static FunctionFactory add = s -> new FunctionBase2() {
         @Override
         public NodeValue exec(NodeValue nodeValue1, NodeValue nodeValue2) {
-            System.err.println("add");
             NodeValue value;
             if(nodeValue1.isDouble() && nodeValue2.isDouble()){
                 final String lexicalForm = String.format("Constant(%s)", nodeValue1.getDouble() + nodeValue2.getDouble());
