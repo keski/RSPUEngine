@@ -1,0 +1,75 @@
+# Query demonstrating the Farida use-case. The query detects an abnormal event
+
+BASE <http://base/>
+PREFIX ecare: <http://www.example.org/ecare#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX rspu: <http://w3id.org/rsp/rspu#>
+PREFIX rspu-fn: <http://w3id.org/rsp/rspu/fn#>
+PREFIX bn-ns: <http://w3id.org/rsp/rspu/bn#>
+
+REGISTER STREAM <abnormal/farida> COMPUTED EVERY PT1S AS
+
+SELECT (MAX(?hr) AS ?maxHr) (MAX(?br) AS ?maxBr) (MAX(?ox) AS ?maxOx) (MAX(?temp) AS ?maxTemp)
+FROM NAMED WINDOW <w1> ON <http://ecareathome/stream/activity> [RANGE PT5S STEP PT1S]
+FROM NAMED WINDOW <w2> ON <http://ecareathome/stream/heartrate> [RANGE PT5S STEP PT1S]
+FROM NAMED WINDOW <w3> ON <http://ecareathome/stream/breathing> [RANGE PT5S STEP PT1S]
+FROM NAMED WINDOW <w4> ON <http://ecareathome/stream/oxygen> [RANGE PT5S STEP PT1S]
+FROM NAMED WINDOW <w5> ON <http://ecareathome/stream/temperature> [RANGE PT5S STEP PT1S]
+WHERE {
+    [] a ecare:Context ;
+       ecare:forPerson ?person ;
+       ecare:forActivity ?activity ;
+       ecare:expectedHeartRate        [ ecare:lowerBound ?hrLower ; ecare:upperBound ?hrUpper ] ;
+       ecare:expectedBreathingRate    [ ecare:lowerBound ?brLower ; ecare:upperBound ?brUpper ] ;
+       ecare:expectedOxygenSaturation [ ecare:lowerBound ?oxLower ; ecare:upperBound ?oxUpper ] ;
+       ecare:expectedTemperature      [ ecare:lowerBound ?tempLower ; ecare:upperBound ?tempUpper ] ;
+
+    WINDOW <w1> {
+        GRAPH ?g1 {
+            ?e1 a ecare:ActivityEvent ;
+                sosa:observedProperty <person1/Activity> ;
+                sosa:featureOfInterest ?person ;
+                sosa:hasSimpleResult ?activity .
+        }
+    }
+    FILTER(?hr > ?hrUpper)
+
+    WINDOW <w2> {
+        GRAPH ?g2 {
+            ?e2 a ecare:HeartRateEvent ;
+                sosa:observedProperty <person1/HeartRate> ;
+                sosa:featureOfInterest ?person ;
+                sosa:hasSimpleResult ?hr .
+        }
+    }
+    FILTER(?br > ?brUpper)
+
+    WINDOW <w3> {
+        GRAPH ?g3 {
+            ?e3 a ecare:BreathingRateEvent ;
+                sosa:observedProperty <person1/BreathingRate> ;
+                sosa:featureOfInterest ?person ;
+                sosa:hasSimpleResult ?br .
+        }
+    }
+    WINDOW <w4> {
+        GRAPH ?g4 {
+            ?e4 a ecare:OxygenSaturationEvent ;
+                sosa:observedProperty <person1/OxygenSaturation> ;
+                sosa:featureOfInterest ?person ;
+                sosa:hasSimpleResult ?ox .
+        }
+    }
+    FILTER(?ox < ?oxLower)
+
+    WINDOW <w5> {
+        GRAPH ?g5 {
+            ?e5 a ecare:TemperatureEvent ;
+                sosa:observedProperty <person1/Temperature> ;
+                sosa:featureOfInterest ?person ;
+                sosa:hasSimpleResult ?temp .
+        }
+    }
+    FILTER(?temp > ?tempUpper)
+}

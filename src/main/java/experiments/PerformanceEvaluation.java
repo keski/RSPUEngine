@@ -2,6 +2,8 @@ package experiments;
 
 import org.apache.jena.query.ARQ;
 import org.apache.jena.query.QueryFactory;
+import org.apache.jena.sparql.expr.NodeValue;
+import org.apache.jena.sparql.expr.nodevalue.NodeValueNode;
 import org.apache.jena.sparql.function.FunctionRegistry;
 import org.apache.log4j.Logger;
 import se.liu.ida.rspqlstar.function.BayesianNetwork;
@@ -20,6 +22,7 @@ import se.liu.ida.rspqlstar.store.engine.RSPQLStarEngine;
 import se.liu.ida.rspqlstar.store.engine.RSPQLStarQueryExecution;
 import se.liu.ida.rspqlstar.stream.StreamFromFile;
 import se.liu.ida.rspqlstar.util.TimeUtil;
+import smile.Network;
 
 import java.io.*;
 import java.sql.Time;
@@ -43,9 +46,12 @@ public class PerformanceEvaluation {
         String bnNs = "http://www.example.org/ontology#";
 
         // Bayes
-        BayesianNetwork.loadNetwork("http://example.org/bn/farida", bnNs, root + "data/performance-eval/medical.xdsl");
+        BayesianNetwork.loadNetwork("http://example.org/bn/medical-small", bnNs, root + "data/performance-eval/medical-small.xdsl");
+        BayesianNetwork.loadNetwork("http://example.org/bn/medical-large", bnNs, root + "data/performance-eval/medical-large.xdsl", Network.BayesianAlgorithmType.HENRION);
         FunctionRegistry.get().put(rspuFnNs + "belief", BayesianNetwork.belief);
         FunctionRegistry.get().put(rspuFnNs + "map", BayesianNetwork.map);
+        //x100g
+
 
         // Fuzzy logic
         FunctionRegistry.get().put(rspuFnNs + "conjunction", ZadehLogic.conjunction);
@@ -70,18 +76,15 @@ public class PerformanceEvaluation {
         // Note: For high stream rates performance will deteriorate over time.
 
         // Probability distribution query
-        int[] rates = new int[]{
-                100, 200, 300, 400, 500,
-                600, 700, 800, 900, 1000,
-                1100, 1200, 1300, 1400, 1500,
-                1600, 1700, 1800, 1900, 2000};
+        int[] rates = new int[]{100, 500, 1000, 1500, 2000, 2500, 3000, 3500};
+        rates = new int[]{10, 30, 60, 70, 80, 90, 100};
         String[] unc_types = new String[]{
                 //"all",
-                "baseline",
-                "baseline",
-                "fuzzy",
-                "probability",
-                "bayes"
+                //"baseline",
+                //"fuzzy",
+                //"probability",
+                //"bayes",
+                "bayes-large"
         };
 
         for (int rate : rates) {

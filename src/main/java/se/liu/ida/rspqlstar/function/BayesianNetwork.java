@@ -14,11 +14,12 @@ import smile.Network;
 import java.io.File;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.time.DayOfWeek;
 import java.util.HashMap;
 import java.util.List;
 
 public class BayesianNetwork {
-    public static HashMap<NodeValue, Network> bnMap = new HashMap<>();
+    public static HashMap<String, Network> bnMap = new HashMap<>();
     public static HashMap<Network, String> nsMap = new HashMap<>();
 
     static {
@@ -56,13 +57,17 @@ public class BayesianNetwork {
     }
 
     public static Network loadNetwork(String bnUri, String ns, String filePath) {
+        return loadNetwork(bnUri, ns, filePath, 0);
+    }
+
+    public static Network loadNetwork(String bnUri, String ns, String filePath, int algorithm) {
         System.out.println("Loading " + bnUri);
         if(!bnMap.containsKey(bnUri)){
             Network net = new Network();
             net.readFile(filePath);
-            NodeValue bnId = NodeValue.makeNode(NodeFactory.createURI(bnUri));
-            bnMap.put(bnId, net);
+            bnMap.put(bnUri, net);
             nsMap.put(net, ns);
+            net.setBayesianAlgorithm(algorithm);
         }
         return bnMap.get(bnUri);
     }
@@ -70,13 +75,12 @@ public class BayesianNetwork {
     public static FunctionFactory belief = s -> new FunctionBase() {
         @Override
         public NodeValue exec(List<NodeValue> params) {
-            Network bn = bnMap.get(params.get(0));
-            NodeValue targetNode = params.get(1);
-            NodeValue targetNodeState = params.get(2);
-            List<NodeValue> evidence = params.subList(3, params.size());
+            final Network bn = bnMap.get(params.get(0).getNode().getURI());
+            final int targetNodeId = bn.getNode(encode(params.get(1), nsMap.get(bn)));
 
-            float p = (float) getOutcome(bn, targetNode, targetNodeState, evidence);
-            bn.clearAllEvidence();
+            final NodeValue targetNodeState = params.get(2);
+            final List<NodeValue> evidence = params.subList(3, params.size());
+            float p = (float) getOutcome(bn, targetNodeId, targetNodeState, evidence);
             return NodeValue.makeFloat(p);
         }
 
@@ -84,13 +88,13 @@ public class BayesianNetwork {
         public void checkBuild(String s, ExprList exprList) {}
     };
 
-    public static FunctionFactory map = s -> new FunctionBase() {
+    public static FunctionFactory mle = s -> new FunctionBase() {
         @Override
         public NodeValue exec(List<NodeValue> params) {
-            final Network bn = bnMap.get(params.get(0));
-            final NodeValue targetNode = params.get(1);
+            final Network bn = bnMap.get(params.get(0).getNode().getURI());
+            int targetNodeId = bn.getNode(encode(params.get(1), nsMap.get(bn)));
             final List<NodeValue> evidence = params.subList(2, params.size());
-            final HashMap<NodeValue, Double> outcomes = getOutcomes(bn, targetNode, evidence);
+            final HashMap<NodeValue, Double> outcomes = getOutcomes(bn, targetNodeId, evidence);
 
             NodeValue map = null;
             double max = 0;
@@ -100,7 +104,6 @@ public class BayesianNetwork {
                     map = outcome;
                 }
             }
-            bn.clearAllEvidence();
             return map;
         }
 
@@ -108,17 +111,45 @@ public class BayesianNetwork {
         public void checkBuild(String s, ExprList exprList) {}
     };
 
-    public static double getOutcome(Network bn, NodeValue targetNode, NodeValue targetNodeState, List<NodeValue> evidence){
-        return getOutcomes(bn, targetNode, evidence).get(targetNodeState);
+    public static FunctionFactory map = s -> new FunctionBase() {
+        @Override
+        public NodeValue exec(List<NodeValue> params) {
+            final Network bn = bnMap.get(params.get(0).getNode().getURI());
+            int targetNodeId = bn.getNode(encode(params.get(1), nsMap.get(bn)));
+            final List<NodeValue> evidence = params.subList(2, params.size());
+            final HashMap<NodeValue, Double> outcomes = getOutcomes(bn, targetNodeId, evidence);
+
+            NodeValue map = null;
+            double max = 0;
+            for(NodeValue outcome : outcomes.keySet()){
+                if(outcomes.get(outcome) > max){
+                    max = outcomes.get(outcome);
+                    map = outcome;
+                }
+            }
+            return map;
+        }
+
+        @Override
+        public void checkBuild(String s, ExprList exprList) {}
+    };
+
+    public static double getOutcome(Network bn, int targetNodeId, NodeValue targetNodeState, List<NodeValue> evidence){
+        return getOutcomes(bn, targetNodeId, evidence).get(targetNodeState);
     }
 
-    public static HashMap<NodeValue, Double> getOutcomes(Network bn, NodeValue targetNode, List<NodeValue> evidence){
+    public static HashMap<NodeValue, Double> getOutcomes(Network bn, int targetNodeId, List<NodeValue> evidence){
         final String ns = nsMap.get(bn);
-        final String targetNodeId = encode(targetNode, ns);
-
         for(int i=0; i < evidence.size(); i = i + 2){
             bn.setEvidence(encode(evidence.get(i), ns), encode(evidence.get(i + 1), ns));
         }
+
+        bn.setTarget(targetNodeId, true);
+
+        // Approx. algorithms:
+        // 1: Network.BayesianAlgorithmType.HENRION
+        // 4: Network.BayesianAlgorithmType.SELF_IMPORTANCE;
+        // 5: Network.BayesianAlgorithmType.HEURISTIC_IMPORTANCE;
         bn.updateBeliefs();
 
         final HashMap<NodeValue, Double> outcomeMap = new HashMap<>();
@@ -127,6 +158,9 @@ public class BayesianNetwork {
             String outcomeId = bn.getOutcomeId(targetNodeId, i);
             outcomeMap.put(decode(outcomeId, ns), outcomes[i]);
         }
+
+        bn.clearAllTargets();
+        bn.clearAllEvidence();
         return outcomeMap;
     }
 

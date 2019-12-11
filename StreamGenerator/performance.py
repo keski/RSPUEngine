@@ -3,6 +3,8 @@ Author: Robin Keskisärkkä
 
 This script is used to generate multiple heart rate streams, annoatated with uncertainty, of various stream rates.
 The values are randomized from a range and do not conform to any specific scenario.
+
+TODO: Update template/generation according to use-case.
 """
 
 import re
@@ -29,7 +31,11 @@ def main():
     # duration of each stream (6 minutes)
     duration = 4 * 60
     percentage = 0
-    for rate in [100, 200, 300, 400, 500, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000]:
+    for rate in [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]: #[2100, 2200, 2300, 2400, 2600, 2700, 2800, 2900, 3100, 3200, 3300, 3400]:
+        # [100, 200, 300, 400, 500, 500, 600, 700, 800, 900, 1000,
+        #  1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000,
+        #  2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000,
+        #  3100, 3200, 3300, 3400, 3500]:
         heart_f = open(f"../data/performance-eval/streams/heart-{rate}.trigs", "w")
         heart_f.write(prefixes + "\n")
         unix_time = reference_unix_time

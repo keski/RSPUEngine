@@ -68,65 +68,76 @@ def main():
     normal_sample.__name__ = "Normal"
     uniform_sample.__name__ = "Uniform"
 
-    heart_f = open("../src/main/resources/use-case/streams/heart.trigs", "w")
-    oxygen_f = open("../src/main/resources/use-case/streams/oxygen.trigs", "w")
-    breathing_f = open("../src/main/resources/use-case/streams/breathing.trigs", "w")
-    temperature_f = open("../src/main/resources/use-case/streams/temperature.trigs", "w")
-    activity_f = open("../src/main/resources/use-case/streams/activity.trigs", "w")
+    heart_f = open("../data/use-case/streams/heart.trigs", "w")
+    oxygen_f = open("../data/use-case/streams/oxygen.trigs", "w")
+    breathing_f = open("../data/use-case/streams/breathing.trigs", "w")
+    temperature_f = open("../data/use-case/streams/temperature.trigs", "w")
+    activity_f = open("../data/use-case/streams/activity.trigs", "w")
 
     # write prefixes
     with open("prefixes.ttl", "r") as f:
         prefixes = f.read().replace("\n", " ")
     heart_f.write(prefixes + "\n")
+    oxygen_f.write(prefixes + "\n")
+    breathing_f.write(prefixes + "\n")
+    temperature_f.write(prefixes + "\n")
+    activity_f.write(prefixes + "\n")
 
     scenario = [
         {
-            "duration": 100,
+            "duration": 30,
             "heart_rate": 60,
             "oxygen": 95,
             "breathing": 14,
             "temperature": 37,
-            "activity": ":Resting"
+            "activity": "Resting"
         },
         {
-            "duration": 100,
+            "duration": 30,
             "heart_rate": 80,
             "oxygen": 95,
             "breathing": 14,
             "temperature": 37,
-            "activity": ":Resting"
+            "activity": "Resting"
         },
         {
-            "duration": 100,
+            "duration": 30,
             "heart_rate": 100,
             "oxygen": 94,
             "breathing": 14,
             "temperature": 38,
-            "activity": ":Sleeping"
+            "activity": "Sleeping"
         },
         {
-            "duration": 100,
+            "duration": 30,
             "heart_rate": 120,
             "oxygen": 90,
             "breathing": 20,
             "temperature": 38.5,
-            "activity": ":Sleeping"
+            "activity": "Sleeping"
         },
         {
-            "duration": 100,
+            "duration": 30,
             "heart_rate": 130,
             "oxygen": 89,
-            "breathing": 14,
+            "breathing": 30,
             "temperature": 38.8,
-            "activity": ":Sleeping"
+            "activity": "Sleeping"
         }, {
-            "duration": 100,
+            "duration": 30,
             "heart_rate": 165,
             "oxygen": 89,
             "breathing": 25,
             "temperature": 38.8,
-            "activity": ":Sleeping"
-        },
+            "activity": "Sleeping"
+        }, {
+            "duration": 30,
+            "heart_rate": 140,
+            "oxygen": 85,
+            "breathing": 24,
+            "temperature": 38.0,
+            "activity": "Sleeping"
+        }
     ]
 
     # Set time: 2019-11-27T19:59
@@ -139,26 +150,29 @@ def main():
             unix_time += 1
             timestamp = f"\"{datetime.utcfromtimestamp(unix_time).strftime('%Y-%m-%dT%H:%M:%SZ')}\"^^xsd:dateTime"
 
-            event = heart(counter, timestamp, x["heart_rate"], 5)
-            heart_f.write(re.sub("\\s+", " ", event) + "\n")
+            e1 = heart(counter, timestamp, x["heart_rate"], 5)
+            heart_f.write(re.sub("\\s+", " ", e1) + "\n")
 
-            event = oxygen(counter, timestamp, x["oxygen"], 2)
-            oxygen_f.write(re.sub("\\s+", " ", event) + "\n")
+            e2 = oxygen(counter, timestamp, x["oxygen"], 2)
+            oxygen_f.write(re.sub("\\s+", " ", e2) + "\n")
 
-            event = breathing(counter, timestamp, x["breathing"], 2)
-            breathing_f.write(re.sub("\\s+", " ", event) + "\n")
+            e3 = breathing(counter, timestamp, x["breathing"], 2)
+            breathing_f.write(re.sub("\\s+", " ", e3) + "\n")
 
-            event = temperature(counter, timestamp, x["temperature"], 0.5)
-            temperature_f.write(re.sub("\\s+", " ", event) + "\n")
+            e4 = temperature(counter, timestamp, x["temperature"], 0.5)
+            temperature_f.write(re.sub("\\s+", " ", e4) + "\n")
 
-            event = activity(counter, timestamp, x["activity"])
-            activity_f.write(re.sub("\\s+", " ", event) + "\n")
+            e5 = activity(counter, timestamp, x["activity"])
+            activity_f.write(re.sub("\\s+", " ", e5) + "\n")
 
     heart_f.close()
     oxygen_f.close()
     breathing_f.close()
     temperature_f.close()
     activity_f.close()
+
+    for e in [e1, e2, e3, e4, e5]:
+        print(e)
 
 
 def eval_fuzzy(fuzzy_list, sample):
@@ -179,6 +193,8 @@ def eval_fuzzy(fuzzy_list, sample):
 def heart(i, timestamp, mean, stddev, person="person1", sensor="hr/sensor1"):
     sample = int(normal_sample(mean, stddev, decimals=0))
     x = eval_fuzzy(get_fuzzy_heart_rate()[1], sample)
+    if x['state'] == "VeryHigh":
+        x['state'] = "High"
     data = {
         "graph": f"_:g{i}",
         "observation": f"_:b{i}",
@@ -186,11 +202,11 @@ def heart(i, timestamp, mean, stddev, person="person1", sensor="hr/sensor1"):
         "feature_of_interest": f"<{person}>",
         "observed_property": f"<{person}/HeartRate>",
         "value": sample,
-        "value_error": f"\"Normal(0,{stddev**stddev})\"^^rspu:distribution",
+        "value_error": f"\"Normal(0,{stddev*stddev})\"^^rspu:distribution",
         "unc_type": x["event_types"],
         "time": timestamp,
-        "state_type": ":HeartRate",
-        "state": x["state"]
+        "state_type": "ecare:HeartRate",
+        "state": f"{x['state']}"
     }
     template = Template(filename='templates/heart.template')
     return template.render(data=data)
@@ -209,8 +225,8 @@ def oxygen(i, timestamp, mean, error, person="person1", sensor="oxygen/sensor1")
         "value_error": f"\"Uniform({-error},{error})\"^^rspu:distribution",
         "unc_type": x["event_types"],
         "time": timestamp,
-        "state_type": ":OxygenSaturation",
-        "state": x["state"]
+        "state_type": "ecare:OxygenSaturation",
+        "state": f"{x['state']}"
     }
     template = Template(filename='templates/oxygen.template')
     return template.render(data=data)
@@ -230,8 +246,8 @@ def breathing(i, timestamp, mean, error, person="person1", sensor="breathing/sen
         "value_error": f"\"Uniform({-error},{error})\"^^rspu:distribution",
         "unc_type": x["event_types"],
         "time": timestamp,
-        "state_type": ":BreathingRate",
-        "state": x["state"]
+        "state_type": "ecare:BreathingRate",
+        "state": f"{x['state']}"
     }
     template = Template(filename='templates/breathing.template')
     return template.render(data=data)
@@ -251,24 +267,24 @@ def temperature(i, timestamp, mean, stddev, person="person1", sensor="temperatur
         "value_error": f"\"Normal(0,{stddev**stddev})\"^^rspu:distribution",
         "unc_type": x["event_types"],
         "time": timestamp,
-        "state_type": ":Temperature",
-        "state": x["state"]
+        "state_type": "ecare:Temperature",
+        "state": f"{x['state']}"
     }
     template = Template(filename='templates/temperature.template')
     return template.render(data=data)
 
 
-def activity(i, timestamp, doing, person="person1", sensor="activity/sensor1"):
+def activity(i, timestamp, current_activity, person="person1", sensor="activity/sensor1"):
     data = {
         "graph": f"_:g{i}",
         "observation": f"_:b{i}",
         "sensor": f"<{sensor}>",
         "feature_of_interest": f"<{person}>",
-        "observed_property": f"<{person}/Temperature>",
-        "value": doing,
+        "observed_property": f"<{person}/Activity>",
+        "value": current_activity,
         "time": timestamp,
-        "state_type": ":Activity",
-        "state": doing
+        "state_type": "ecare:Activity",
+        "state": f"{current_activity}"
     }
     template = Template(filename='templates/activity.template')
     return template.render(data=data)
@@ -286,10 +302,10 @@ def get_fuzzy_heart_rate():
     high = fuzz.trapmf(x, [100, 120, 160, 180])
     very_high = fuzz.trapmf(x, [160, 180, 300, 300])
 
-    return (x, [{"state": ":Low", "event_type": ":LowHeartRateEvent", "f": low},
-                {"state": ":Normal", "event_type": ":NormalHeartRateEvent", "f": medium},
-                {"state": ":High", "event_type": ":HighHeartRateEvent", "f": high},
-                {"state": ":VeryHigh", "event_type": ":VeryHighHeartRateEvent", "f": very_high}])
+    return (x, [{"state": "Low", "event_type": "LowHeartRateEvent", "f": low},
+                {"state": "Normal", "event_type": "NormalHeartRateEvent", "f": medium},
+                {"state": "High", "event_type": "HighHeartRateEvent", "f": high},
+                {"state": "VeryHigh", "event_type": "VeryHighHeartRateEvent", "f": very_high}])
 
 
 def get_fuzzy_breathing():
@@ -303,9 +319,9 @@ def get_fuzzy_breathing():
     normal = fuzz.trapmf(x, [8, 12, 16, 20])
     high = fuzz.trapmf(x, [18, 60, 100, 100])
 
-    return (x, [{"state": ":Low", "event_type": ":SlowBreathingRateEvent", "f": low},
-                {"state": ":Normal", "event_type": ":NormalBreathingRateEvent", "f": normal},
-                {"state": ":High", "event_type": ":ElevatedBreathingRateEvent", "f": high}])
+    return (x, [{"state": "Low", "event_type": "SlowBreathingRateEvent", "f": low},
+                {"state": "Normal", "event_type": "NormalBreathingRateEvent", "f": normal},
+                {"state": "High", "event_type": "ElevatedBreathingRateEvent", "f": high}])
 
 
 def get_fuzzy_oxygen():
@@ -318,8 +334,8 @@ def get_fuzzy_oxygen():
     low = fuzz.trapmf(x, [0, 0, 88, 90])
     normal = fuzz.trapmf(x, [88, 92, 100, 100])
 
-    return (x, [{"state": ":Low", "event_type": ":LowOxygenSaturationEvent", "f": low},
-                {"state": ":Normal", "event_type": ":NormalOxygenSaturationEvent", "f": normal}])
+    return (x, [{"state": "Low", "event_type": "LowOxygenSaturationEvent", "f": low},
+                {"state": "Normal", "event_type": "NormalOxygenSaturationEvent", "f": normal}])
 
 
 def get_fuzzy_temperature():
@@ -333,9 +349,9 @@ def get_fuzzy_temperature():
     normal = fuzz.trapmf(x, [360, 365, 375, 385])
     high = fuzz.trapmf(x, [375, 385, 420, 450])
 
-    return (x, [{"state": ":Low", "event_type": ":LowTemperatureEvent", "f": low},
-                {"state": ":Normal", "event_type": ":NormalTemperatureEvent", "f": normal},
-                {"state": ":High", "event_type": ":HighTemperatureEvent", "f": high}])
+    return (x, [{"state": "Low", "event_type": "LowTemperatureEvent", "f": low},
+                {"state": "Normal", "event_type": "NormalTemperatureEvent", "f": normal},
+                {"state": "High", "event_type": "HighTemperatureEvent", "f": high}])
 
 
 def normal_sample(mu, sigma, decimals=2):

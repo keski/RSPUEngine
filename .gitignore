@@ -1,4 +1,8 @@
-/target
 .DS_Store
 .idea/
+target/
 data/performance-eval/streams/*.trigs
+data/use-case/streams/*.trigs
+output/
+log.txt
+results.log

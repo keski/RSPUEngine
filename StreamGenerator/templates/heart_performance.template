@@ -6,9 +6,9 @@ ${data['graph']} {
         sosa:resultTime ${data['time']} .
     ${data['observation']} sosa:hasSimpleResult ${data['value']} .
     % for i in  data['unc_type']:
-    << ${data['observation']} rdf:type ${i} >> rspu:degree ${data['unc_type'][i]} .
+    << ${data['observation']} rdf:type ecare:${i} >> rspu:degreeOfTruth ${data['unc_type'][i]} .
     % endfor
-    << ${data['observation']} rdf:type ${data['state_type']} >> rspu:hasState ${data['state']} .
+    << ${data['observation']} rdf:type ${data['state_type']} >> rspu:hasState "${data['state']}" .
 }
 ${data['graph']} prov:generatedAtTime ${data['time']} .
 

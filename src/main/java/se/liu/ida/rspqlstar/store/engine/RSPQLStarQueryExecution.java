@@ -106,12 +106,11 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
             //System.out.println(next_execution + "\n");
             String line = "";
             if(rs.hasNext()){
-                if(rs.getResultVars().size() == 1) {
+                if(rs.getResultVars().size() == 1 && rs.getResultVars().contains("count")) {
                     String count = rs.next().get("count").asLiteral().getLexicalForm();
                     line += "Results: " + count + "\t";
-                } else {
-                    ResultSetMgr.write(out, rs, ResultSetLang.SPARQLResultSetText);
                 }
+                ResultSetMgr.write(out, rs, ResultSetLang.SPARQLResultSetText);
             }
             exec.close();
 

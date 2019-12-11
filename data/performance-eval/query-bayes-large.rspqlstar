@@ -1,6 +1,8 @@
-# Query demonstrating the Bayesian Network uncertainty type over a single event stream.
-# Reports the most likely medical status (Normal or Abnormal) given the heart-rate state as evidence
-# and the BN as domain knowledge.
+# Query demonstrating the Bayesian Network uncertainty type over a single event stream when the network
+# is very large.
+# The query reports the most likely observation for one of the top of the root (BG-10), given a random observation
+# at the bottom of the tree (BG-20). For exact inference this limits execution time to ~10 events/s. With Henrion
+# sampling this can be managed up to
 
 BASE <http://base/>
 PREFIX : <http://www.example.org/ontology#>
@@ -24,7 +26,8 @@ WHERE {
           << ?event a :VeryHighHeartRateEvent >> rspu:degree ?degree2 .
 
           # Bayes
-          BIND(rspu-fn:map(<http://example.org/bn/medical-small>, :MedicalStatus, ?node, ?state) AS ?unc)
+          BIND(URI(CONCAT("http://www.example.org/ontology#x", STR(xsd:integer(ROUND(RAND()*9)) * 2 + 2), "mmol_l")) AS ?obs)
+          BIND(rspu-fn:map(<http://example.org/bn/medical-large>, :bg_10, :bg_20    , ?obs) AS ?unc)
       }
    }
 }

@@ -13,7 +13,7 @@ PREFIX bn-ns: <http://w3id.org/rsp/rspu/bn#>
 
 REGISTER STREAM <all> COMPUTED EVERY PT1S AS
 
-SELECT ?event ?hr ?state ?degree1 ?degree2 ?unc1 ?unc2 ?unc3
+SELECT ?event ?hr ?state ?degree1 ?degree2 ?unc1 ?unc2 ?unc3 ?unc4
 FROM NAMED WINDOW <w> ON <http://ecareathome/stream/heartrate> [RANGE PT1S STEP PT1S]
 WHERE {
    WINDOW <w> {
@@ -29,7 +29,11 @@ WHERE {
           # Probability
           BIND(rspu-fn:greaterThan(?hr, 100) AS ?unc2)
           # Bayes
-          BIND(rspu-fn:map(<http://example.org/bn/farida>, :MedicalStatus, ?node, ?state) AS ?unc3)
+          BIND(rspu-fn:map(<http://example.org/bn/medical-small>, :MedicalStatus, ?node, ?state) AS ?unc3)
+          # Bayes large
+          BIND(URI(CONCAT("http://www.example.org/ontology#x", STR(xsd:integer(ROUND(RAND()*20)) * 5), "g")) AS ?obs)
+          BIND(rspu-fn:map(<http://example.org/bn/medical-large>, :cho_0, :meal_0, ?obs) AS ?unc4)
       }
+      ?g ?p ?time .
    }
 }
