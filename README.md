@@ -1,9 +1,10 @@
-# RDFStarEngine
+# RSPUEngine
 
-This document describes the current state of the RDFStarStar as of May, 2019, and
-clarifies some important terms and design decisions. The engine based on
-the RSP-QL semantics but implements the RDF\* and SPARQL\* extensions to represent and query
-statement-level metadata. The store is based primarily on Apache Jena 3.7.0.
+This document describes the current state of the RSPUEngine as of December, 2019, and
+clarifies some important terms and design decisions. The engine based on [RSPQLStarEngine](https://github.com/keski/RSPQLStarEngine),
+which implements the RDF\* and SPARQL\* extension of the RSP-QL semantics to represent and query
+statement-level metadata. The system is primarily based on Apache Jena 3.7.0, but implements a different query
+execution engine.
 
 ## RSP-QL
 RSP-QL is an extension of standard SPARQL, developed by the RSP W3C Community Group (www.w3id.org/rsp)
@@ -53,17 +54,20 @@ WHERE {
 
 ## RSP-QL*
 
-RSP-QL* is an extension of RSP-QL that leverages RDF* and SPARQL* to provide statement-level
+RSP-QL* [1] is an extension of RSP-QL that leverages RDF* and SPARQL* to provide statement-level
 annotations. Let's return to the previous RSP-QL query above, but this time we assume that each
-value in the stream is associated with some confidence value. The query below shows how this would
+value in the stream is associated with a source. The query below shows how this would
 be accomplished by using RDF reification, and the second query shows the same query expressed using
 RSP-QL*.
+
+[1] Keskisärkkä, R., Blomqvist, E., Lind, L., Hartig, O.: RSP-QL*: Enabling Statement-Level Annotations in RDF Streams. In: Semantic Systems. The Power of AI and Knowledge Graphs (2019)
+
 
 ```
 PREFIX : <http://example.org#>
 REGISTER STREAM :mystream COMPUTED EVERY PT1S AS 
 
-SELECT ?value ?confidence
+SELECT ?value ?source
 FROM NAMED WINDOW :w ON :stream [RANGE PT10S STEP PT1S]
 WHERE {
    WINDOW :w {
@@ -74,7 +78,7 @@ WHERE {
             rdf:subhect ?obs ;
             rdf:predicate a ;
             rdf:object ?value ;
-            :confidence ?confidence .
+            :source ?source .
        }
    }
 }
@@ -84,13 +88,13 @@ WHERE {
 PREFIX : <http://example.org#>
 REGISTER STREAM :mystream COMPUTED EVERY PT1S AS 
 
-SELECT ?value ?confidence
+SELECT ?value ?source
 FROM NAMED WINDOW :w ON :stream [RANGE PT10S STEP PT1S]
 WHERE {
    WINDOW :w {
       GRAPH ?g {
          ?obs a :Observation .
-         <<?obs :hasValue ?value>> :confidence ?confidence . }
+         <<?obs :hasValue ?value>> :source ?source . }
    }
 }
 ```
