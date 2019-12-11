@@ -1,7 +1,7 @@
 # RSPUEngine
 
 This document describes the current state of the RSPUEngine as of December, 2019, and
-clarifies some important terms and design decisions. The engine based on [RSPQLStarEngine](https://github.com/keski/RSPQLStarEngine),
+clarifies some important terms and design decisions. The system is based on [RSPQLStarEngine](https://github.com/keski/RSPQLStarEngine),
 which implements the RDF\* and SPARQL\* extension of the RSP-QL semantics to represent and query
 statement-level metadata. The system is primarily based on Apache Jena 3.7.0, but implements a different query
 execution engine.
