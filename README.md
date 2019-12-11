@@ -4,7 +4,15 @@ This document describes the current state of the RSPUEngine as of December, 2019
 clarifies some important terms and design decisions. The system is based on [RSPQLStarEngine](https://github.com/keski/RSPQLStarEngine),
 which implements the RDF\* and SPARQL\* extension of the RSP-QL semantics to represent and query
 statement-level metadata. The underlying engine is primarily based on Apache Jena 3.7.0, but implements a different query
-execution engine.
+execution engine and dataset models.
+
+The RSPUEngine adds support for processing uncertainty. The engine currently supports:
+- Modeling probability using the `rspu:distribution` datatype (e.g `"Normal(10,2)"^^rspu:distribution`)
+- Operations on probability distributions (leveraging Apache Commons Math)
+- Operations on Bayesian Networks (leveraging the SMILE library from [BayesFusion](https://www.bayesfusion.com/])
+- Fuzzy logic operations (including the Zadeh operations for conjunction, disjunction, implication, and negation)
+
+The operations are implemented as SPARQL value functions (to be used in SPARQL expressions).
 
 ## RSP-QL
 RSP-QL is an extension of standard SPARQL, developed by the RSP W3C Community Group (www.w3id.org/rsp)
@@ -99,8 +107,7 @@ WHERE {
 }
 ```
 
-
-### Node dictionary
+## Node dictionary
 All incoming nodes are mapped to IDs (longs) in a `NodeDictionary`. All mappings
 in the node dictionary use IDs where the most significant bit (MSB) of the ID is
 not set. For example, an ID with value 5 would be encoded as:
@@ -109,7 +116,7 @@ not set. For example, an ID with value 5 would be encoded as:
 0-000000000000000000000000000000000000000000000000000000000000101
 ```
 
-### Reference dictionary
+## Reference dictionary
 The `ReferenceDictionary` instead encodes a special type of ID, which maps a a triple to an ID.
 The reference dictionary uses IDs where the most significant (MSB) of the ID is set. For
 example, a reference ID with value 5 would be encoded as;
@@ -117,17 +124,17 @@ example, a reference ID with value 5 would be encoded as;
 1-000000000000000000000000000000000000000000000000000000000000101
 ```
 
-### Variable dictionary
+## Variable dictionary
 The `VariableDictionary` encodes the variables of the triple patterns in queries as integers. Having
 this numeric representation of variables makes lowers the comparison cost compared with the default
 Jena implementation.
 
-# Indexes
+## Indexes
 The main index of the system contains six types of indexes: `GSPO`, `GPOS`, `GOSP`, `SPOG`,
 `POSG`, and `OSPG`. Currently, a `TreeMap` is used for storing the encoded quads in the index, but the
 implementation can easily be extended to use other types of indexes.
 
-# Decoding
+## Decoding
 The bulk of the processing of the system is handled by an extension of the Jena execution
 environment. For some of the processing, the node IDs have to be decoded into regular
 Jena nodes. This is done by either: 1) looking up the corresponding values in the
