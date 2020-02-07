@@ -1,8 +1,6 @@
 package se.liu.ida.rspqlstar.store.engine.main;
 
-import org.apache.commons.collections4.iterators.IteratorChain;
 import org.apache.jena.graph.Node;
-import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.graph.Node_Triple;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.sparql.algebra.Op;
@@ -11,8 +9,9 @@ import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
-import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.engine.iterator.QueryIterAssign;
+import org.apache.jena.sparql.engine.iterator.QueryIterSlice;
+import org.apache.jena.sparql.engine.iterator.QueryIteratorCloseable;
 import org.apache.jena.sparql.engine.main.OpExecutor;
 import org.apache.jena.sparql.engine.main.OpExecutorFactory;
 import org.apache.jena.sparql.expr.Expr;
@@ -45,8 +44,6 @@ public class OpRSPQLStarExecutor extends OpExecutor {
      */
     protected QueryIterator exec(final Op op, final QueryIterator input) {
         final QueryIterator iter = super.exec(op, input);
-        if(!iter.hasNext()) input.close();
-        //System.out.println(op);
         return iter;
     }
 
@@ -93,7 +90,17 @@ public class OpRSPQLStarExecutor extends OpExecutor {
         return new DecodeBindingsIterator(execute(opQuad, iter), execCxt);
     }
 
-    //////////////////////////////////////////////////////////////////////////////////
+    /**
+     * Map OpQuadPattern to ID based OpQuadPattern.
+     * @param opQuadPattern
+     * @param input
+     * @return
+     */
+    @Override
+    protected QueryIterator execute(final OpQuadPattern opQuadPattern, final QueryIterator input) {
+        final Iterator<SolutionMapping> iter = new EncodeBindingsIterator(input, execCxt);
+        return new DecodeBindingsIterator(execute(opQuadPattern, iter), execCxt);
+    }
 
     /**
      * ID based OpJoin.
@@ -135,6 +142,27 @@ public class OpRSPQLStarExecutor extends OpExecutor {
         return iterator;
     }
 
+    /**
+     * ID based OpQuadPattern.
+     *
+     * @param opQuadPattern
+     * @param input
+     * @return
+     */
+    private Iterator<SolutionMapping> execute(final OpQuadPattern opQuadPattern, final Iterator<SolutionMapping> input) {
+        Iterator<SolutionMapping> iterator = input;
+        for (Quad quad : opQuadPattern.getPattern().getList()) {
+            iterator = new IdBasedQuadPatternIterator(encode(quad), input, execCxt);
+        }
+        return iterator;
+    }
+
+    /**
+     * OpTable is an empty BGP.
+     * @param opTable
+     * @param input
+     * @return
+     */
     protected Iterator<SolutionMapping> execute(final OpTable opTable, Iterator<SolutionMapping> input) {
         if (opTable.isJoinIdentity()) {
             return input;
@@ -167,13 +195,11 @@ public class OpRSPQLStarExecutor extends OpExecutor {
         if(expr instanceof ExprVar){
             int var2 = encode(expr.getExprVar().asVar()); // should now already have been assigned a value
             iter = new IdBasedVarToVarExtendIterator(encode(var), var2, iter1, execCxt);
-            //throw new IllegalStateException("Binding variable to variable is currently not supported.");
         } else if(expr instanceof ExprFunction) {
             encode(var); // add the var to varDict
             QueryIterator qIter = new DecodeBindingsIterator(iter1, execCxt);
             QueryIterator qIter2 = new QueryIterAssign(qIter, opExtend.getVarExprList(), this.execCxt, true);
             iter = new EncodeBindingsIterator(qIter2, execCxt);
-            //iter = new EncodeBindingsIterator(exec(opExtend, qIter), execCxt);
         } else {
             final Node node = ((NodeValue) expr).asNode();
             final Long id = encode(node);
@@ -219,26 +245,15 @@ public class OpRSPQLStarExecutor extends OpExecutor {
         final Iterator<SolutionMapping> iterator;
         if (op instanceof OpQuad) {
             iterator = execute((OpQuad) op, input);
+        } else if (op instanceof OpQuadPattern) {
+            iterator = execute((OpQuadPattern) op, input);
         } else if (op instanceof OpJoin) {
             iterator = execute((OpJoin) op, input);
         } else if (op instanceof OpSequence) {
             iterator = execute((OpSequence) op, input);
         } else if (op instanceof OpExtend) {
             // opExtend should be treated similarly to a join
-            //Iterator<SolutionMapping> iter = executeIdBasedOp(((OpExtend) op).getSubOp(), input);
-            //iterator = execute((OpExtend) op, iter);
             iterator = execute((OpExtend) op, input);
-
-            // new EncodeBindingsIterator(execute((OpExtend) opLeft, new DecodeBindingsIterator(iter, execCxt)), execCxt);
-            /*
-            OpExtend opExtend = (OpExtend) op;
-            System.err.println("OpExtend with subop: " + ((OpExtend) op).getSubOp().getName());
-            if(opExtend.getSubOp() instanceof OpExtend){
-                iterator = executeIdBasedOp(opExtend.getSubOp(), execute((OpExtend) op, input));
-            } else {
-                iterator = execute((OpExtend) op, input);
-            }
-             */
         } else if (op instanceof OpExtendQuad) {
             iterator = execute((OpExtendQuad) op, input);
         } else if (op instanceof OpFilter) {
@@ -247,12 +262,14 @@ public class OpRSPQLStarExecutor extends OpExecutor {
             iterator = execute((OpTable) op, input);
         } else if(op instanceof OpWindow) {
             iterator = execute((OpWindow) op, input);
-        }  //else if(op instanceof OpUnion) {
+        }
+        //else if(op instanceof OpUnion) {
         //   // TODO: Fix union. Currently does not work as expected.
         //    OpUnion opUnion = (OpUnion) op;
         //    iterator = new IteratorChain<>(executeIdBasedOp(opUnion.getLeft(), input), executeIdBasedOp(opUnion.getRight(), input));
         //
         else {
+            System.err.println("There is no id-based iterator implemented for " + op + ", defaulting to decode/encode");
             logger.info("There is no id-based iterator implemented for " + op + ", defaulting to decode/encode");
             QueryIterator iter = exec(op, new DecodeBindingsIterator(input, execCxt));
             return new EncodeBindingsIterator(iter, execCxt);
@@ -261,17 +278,26 @@ public class OpRSPQLStarExecutor extends OpExecutor {
     }
 
     /**
-     * Encode quad as QuadStarPattern
+     * Encode OpQuad as QuadStarPattern
      * @param opQuad
      * @return
      */
     private QuadStarPattern encode(final OpQuad opQuad) {
-        final Quad pattern = opQuad.getQuad();
+        final Quad quad = opQuad.getQuad();
+        return encode(quad);
+    }
+
+    /**
+     * Encode quad as QuadStarPattern
+     * @param quad
+     * @return
+     */
+    private QuadStarPattern encode(final Quad quad) {
         final QuadPatternBuilder builder = new QuadPatternBuilder();
-        builder.setGraph(pattern.getGraph());
-        builder.setSubject(pattern.getSubject());
-        builder.setPredicate(pattern.getPredicate());
-        builder.setObject(pattern.getObject());
+        builder.setGraph(quad.getGraph());
+        builder.setSubject(quad.getSubject());
+        builder.setPredicate(quad.getPredicate());
+        builder.setObject(quad.getObject());
         return builder.createQuadPattern();
     }
 

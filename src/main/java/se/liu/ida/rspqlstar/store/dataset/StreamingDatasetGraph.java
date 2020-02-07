@@ -22,6 +22,7 @@ public class StreamingDatasetGraph extends AbstractDatasetGraph {
     public Map<String, RDFStarStream> rdfStreams = new HashMap<>();
     private DatasetGraphStar activeDataset = baseDataset;
     private long time = TimeUtil.getTime().getTime();
+    private HashSet<String> preparedForQueries = new HashSet<>();
     private boolean ready = false;
 
     /**
@@ -58,7 +59,7 @@ public class StreamingDatasetGraph extends AbstractDatasetGraph {
             }
             addWindow(new WindowDatasetGraph(name, range, step, time, rdfStream));
         }
-        ready = true;
+        preparedForQueries.add(query.getOutputStream());
     }
 
     public void setBaseDataset(DatasetGraphStar dataset){
@@ -79,8 +80,6 @@ public class StreamingDatasetGraph extends AbstractDatasetGraph {
 
     public void setTime(long time){
         this.time = time;
-        //System.out.println("SDG set time: " + time);
-        //windows.values().forEach(w -> w.getDataset(time.getTime()));
     }
 
     public long getTime(){
@@ -142,7 +141,7 @@ public class StreamingDatasetGraph extends AbstractDatasetGraph {
         return dsg.getDataset(time);
     }
 
-    public boolean isReady() {
-        return ready;
+    public boolean isPreparedForQuery(RSPQLStarQuery query) {
+        return preparedForQueries.contains(query.getOutputStream());
     }
 }

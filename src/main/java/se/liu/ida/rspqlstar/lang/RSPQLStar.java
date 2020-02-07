@@ -9,7 +9,7 @@ import org.apache.jena.sparql.lang.SPARQLParserFactory;
 import org.apache.jena.sparql.lang.SPARQLParserRegistry;
 import org.apache.jena.sparql.serializer.*;
 import org.apache.jena.sparql.util.NodeToLabelMapBNode;
-import se.liu.ida.rspqlstar.serializer.MyFormatterElement;
+import se.liu.ida.rspqlstar.serializer.RSPQLFormatterElement;
 import se.liu.ida.rspqlstar.serializer.RSPQLStarQuerySerializer;
 
 /**
@@ -53,13 +53,13 @@ public class RSPQLStar
 				// For the construct pattern
 				SerializationContext cxt2 = new SerializationContext(prologue, new NodeToLabelMapBNode("c", false));
 
-				return new RSPQLStarQuerySerializer(writer, new MyFormatterElement(writer, cxt1), new FmtExprSPARQL(writer, cxt1),
+				return new RSPQLStarQuerySerializer(writer, new RSPQLFormatterElement(writer, cxt1), new FmtExprSPARQL(writer, cxt1),
 						new FmtTemplate(writer, cxt2));
 			}
 
 			@Override
 			public QueryVisitor create(Syntax syntax, SerializationContext context, IndentedWriter writer) {
-				return new RSPQLStarQuerySerializer(writer, new MyFormatterElement(writer, context), new FmtExprSPARQL(writer,
+				return new RSPQLStarQuerySerializer(writer, new RSPQLFormatterElement(writer, context), new FmtExprSPARQL(writer,
 						context), new FmtTemplate(writer, context));
 			}
 

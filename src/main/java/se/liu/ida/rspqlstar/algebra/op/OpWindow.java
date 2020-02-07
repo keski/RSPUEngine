@@ -12,7 +12,7 @@ import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.serializer.SerializationContext;
 import org.apache.jena.sparql.util.NodeIsomorphismMap;
-import se.liu.ida.rspqlstar.algebra.MyAlgebra;
+import se.liu.ida.rspqlstar.algebra.RSPQLStarAlgebra;
 import se.liu.ida.rspqlstar.sse.writers.MyWriterOp;
 
 public class OpWindow extends OpExt {
@@ -35,7 +35,7 @@ public class OpWindow extends OpExt {
     }
 
     public QueryIterator eval(QueryIterator var1, ExecutionContext var2){
-        throw new  NotImplemented();
+        throw new NotImplemented();
     }
 
     public Op getSubOp(){
@@ -63,7 +63,11 @@ public class OpWindow extends OpExt {
 
     public void output(IndentedWriter out, SerializationContext sCxt) {
         int line = out.getRow();
-        MyWriterOp.output(out, this, sCxt);
+        if(sCxt != null) {
+            MyWriterOp.output(out, this, sCxt);
+        } else {
+            MyWriterOp.output(out, this);
+        }
         if (line != out.getRow()) {
             out.ensureStartOfLine();
         }
@@ -74,7 +78,7 @@ public class OpWindow extends OpExt {
     }
 
     public Op apply(Transform transform) {
-        subOp = Transformer.transform(transform, MyAlgebra.toQuadForm(subOp));
+        subOp = Transformer.transform(transform, RSPQLStarAlgebra.toQuadForm(subOp));
         return this;
     }
 

@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * This class is based on the QuerySerializer class but substitutes the use of FmtUtil for MyFmtUtil.
+ * This class is based on the QuerySerializer class but substitutes the use of FmtUtil for RSPQLFormatterElement.
  * Since the constructor of QuerySerializer are protected the full code has to be included here.
  */
 
@@ -29,22 +29,21 @@ public class RSPQLStarQuerySerializer implements RSPQLStarQueryVisitor {
 
     static final int BLOCK_INDENT = 2;
     protected FormatterTemplate fmtTemplate;
-    protected MyFormatterElement fmtElement;
+    protected RSPQLFormatterElement fmtElement;
     protected FmtExprSPARQL fmtExpr;
     protected IndentedWriter out = null;
     protected Prologue prologue = null;
 
-    public RSPQLStarQuerySerializer(OutputStream _out, MyFormatterElement formatterElement,
-                             FmtExprSPARQL formatterExpr,
-                             FormatterTemplate formatterTemplate) {
+    public RSPQLStarQuerySerializer(OutputStream _out, RSPQLFormatterElement formatterElement,
+                                    FmtExprSPARQL formatterExpr, FormatterTemplate formatterTemplate) {
         this(new IndentedWriter(_out),
                 formatterElement, formatterExpr, formatterTemplate);
     }
 
     public RSPQLStarQuerySerializer(IndentedWriter iwriter,
-                             MyFormatterElement formatterElement,
-                             FmtExprSPARQL formatterExpr,
-                             FormatterTemplate formatterTemplate) {
+                                    RSPQLFormatterElement formatterElement,
+                                    FmtExprSPARQL formatterExpr,
+                                    FormatterTemplate formatterTemplate) {
         out = iwriter;
         fmtTemplate = formatterTemplate;
         fmtElement = formatterElement;
@@ -88,32 +87,24 @@ public class RSPQLStarQuerySerializer implements RSPQLStarQueryVisitor {
     @Override
     public void visitConstructResultForm(Query query) {
         out.print("CONSTRUCT ");
-//        if ( query.isQueryResultStar() )
-//        {
-//            out.print("*") ;
-//            out.newline() ;
-//        }
-//        else
-        {
-            out.incIndent(BLOCK_INDENT);
-            out.newline();
-            Template t = query.getConstructTemplate();
-            fmtTemplate.format(t);
-            out.decIndent(BLOCK_INDENT);
-        }
+        out.incIndent(BLOCK_INDENT);
+        out.newline();
+        Template t = query.getConstructTemplate();
+        fmtTemplate.format(t);
+        out.decIndent(BLOCK_INDENT);
     }
 
     @Override
     public void visitDescribeResultForm(Query query) {
         out.print("DESCRIBE ");
 
-        if (query.isQueryResultStar())
+        if (query.isQueryResultStar()) {
             out.print("*");
-        else {
+        } else {
             appendVarList(query, out, query.getResultVars());
-            if (query.getResultVars().size() > 0 &&
-                    query.getResultURIs().size() > 0)
+            if (query.getResultVars().size() > 0 && query.getResultURIs().size() > 0) {
                 out.print(" ");
+            }
             appendURIList(query, out, query.getResultURIs());
         }
         out.newline();

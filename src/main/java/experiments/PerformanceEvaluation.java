@@ -41,49 +41,46 @@ public class PerformanceEvaluation {
         ARQ.init();
 
         // Namespaces
-        String rspuNS = "http://w3id.org/rsp/rspu#";
-        String rspuFnNs = "http://w3id.org/rsp/rspu/fn#";
-        String bnNs = "http://www.example.org/ontology#";
+        String rspuNs = "http://w3id.org/rsp/rspu#";
+        String bnNs = "http://www.example.org/ecare#";
 
         // Bayes
         BayesianNetwork.loadNetwork("http://example.org/bn/medical-small", bnNs, root + "data/performance-eval/medical-small.xdsl");
         BayesianNetwork.loadNetwork("http://example.org/bn/medical-large", bnNs, root + "data/performance-eval/medical-large.xdsl", Network.BayesianAlgorithmType.HENRION);
-        FunctionRegistry.get().put(rspuFnNs + "belief", BayesianNetwork.belief);
-        FunctionRegistry.get().put(rspuFnNs + "map", BayesianNetwork.map);
+        FunctionRegistry.get().put(rspuNs + "belief", BayesianNetwork.belief);
+        FunctionRegistry.get().put(rspuNs + "map", BayesianNetwork.map);
         //x100g
 
 
         // Fuzzy logic
-        FunctionRegistry.get().put(rspuFnNs + "conjunction", ZadehLogic.conjunction);
-        FunctionRegistry.get().put(rspuFnNs + "disjunction", ZadehLogic.disjunction);
-        FunctionRegistry.get().put(rspuFnNs + "negation", ZadehLogic.negation);
-        FunctionRegistry.get().put(rspuFnNs + "implication", ZadehLogic.implication);
+        FunctionRegistry.get().put(rspuNs + "conjunction", ZadehLogic.conjunction);
+        FunctionRegistry.get().put(rspuNs + "disjunction", ZadehLogic.disjunction);
+        FunctionRegistry.get().put(rspuNs + "negation", ZadehLogic.negation);
+        FunctionRegistry.get().put(rspuNs + "implication", ZadehLogic.implication);
 
         // Probability distribution
-        FunctionRegistry.get().put(rspuFnNs + "lessThan", Probability.lessThan);
-        FunctionRegistry.get().put(rspuFnNs + "lessThanOrEqual", Probability.lessThanOrEqual);
-        FunctionRegistry.get().put(rspuFnNs + "greaterThan", Probability.greaterThan);
-        FunctionRegistry.get().put(rspuFnNs + "greaterThanOrEqual", Probability.greaterThanOrEqual);
-        FunctionRegistry.get().put(rspuFnNs + "between", Probability.between);
-        FunctionRegistry.get().put(rspuFnNs + "add", Probability.add);
-        FunctionRegistry.get().put(rspuFnNs + "subtract", Probability.subtract);
+        FunctionRegistry.get().put(rspuNs + "lessThan", Probability.lessThan);
+        FunctionRegistry.get().put(rspuNs + "lessThanOrEqual", Probability.lessThanOrEqual);
+        FunctionRegistry.get().put(rspuNs + "greaterThan", Probability.greaterThan);
+        FunctionRegistry.get().put(rspuNs + "greaterThanOrEqual", Probability.greaterThanOrEqual);
+        FunctionRegistry.get().put(rspuNs + "between", Probability.between);
+        FunctionRegistry.get().put(rspuNs + "add", Probability.add);
+        FunctionRegistry.get().put(rspuNs + "subtract", Probability.subtract);
 
         // Time offset should match the reference time used in the stream generator
         long ref_time = 1574881152000L;
 
         logger.info("unc_type\trate\ttime_avg\ttime_stddev\tmemory\n");
-        long timeOutAfter = 1000 * 60 * 3; // calc only by the last minute
-        // Note: For high stream rates performance will deteriorate over time.
+        long timeOutAfter = 1000 * 5 * 3;
 
         // Probability distribution query
         int[] rates = new int[]{100, 500, 1000, 1500, 2000, 2500, 3000, 3500};
-        rates = new int[]{10, 30, 60, 70, 80, 90, 100};
         String[] unc_types = new String[]{
-                //"all",
-                //"baseline",
-                //"fuzzy",
-                //"probability",
-                //"bayes",
+                "all",
+                "baseline",
+                "fuzzy",
+                "probability",
+                "bayes",
                 "bayes-large"
         };
 
@@ -125,6 +122,7 @@ public class PerformanceEvaluation {
             qexec.stopContinuousSelect();
 
             long[] results = asArray(qexec.executionTimes);
+            // log the last minute
             results = Arrays.copyOfRange(results, results.length-61, results.length-1);
             logger.info(calculateMean(results)/1000_000.0);
             logger.info("\t");
@@ -137,7 +135,7 @@ public class PerformanceEvaluation {
         // Start query
         PrintStream ps = new PrintStream(new FileOutputStream(new File(String.format("output/%s-%s.txt", unc_type, rate))));
         //ps = System.out;
-        System.out.println("########################### Running " + unc_type + " with stream rate " + rate + " event/s");
+        System.out.println("# Running " + unc_type + " with stream rate " + rate + " event/s");
 
         ps.println(unc_type + " with stream rate " + rate + " event/s");
         qexec.execContinuousSelect(ps, ref_time);

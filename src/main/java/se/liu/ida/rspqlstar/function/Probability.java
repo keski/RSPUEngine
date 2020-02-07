@@ -70,7 +70,7 @@ public class Probability {
                 value = NodeValue.makeNode(lexicalForm, ProbabilityDistribution.type);
             } else if(nodeValue1.isDouble()){
                 value = add(getDistribution(nodeValue2), nodeValue1.getDouble());
-            } if(nodeValue2.isDouble()){
+            } else if(nodeValue2.isDouble()){
                 value = add(getDistribution(nodeValue1), nodeValue2.getDouble());
             } else {
                 value = add(getDistribution(nodeValue1), getDistribution(nodeValue2));

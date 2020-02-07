@@ -1,6 +1,7 @@
 package se.liu.ida.rspqlstar.query;
 
 import org.apache.jena.atlas.io.IndentedWriter;
+import org.apache.jena.ext.com.google.common.hash.HashCode;
 import org.apache.jena.graph.Node;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryVisitor;
@@ -109,5 +110,9 @@ public class RSPQLStarQuery extends Query {
             addResultVar(var);
         }
         // add window ref explicitly?
+    }
+
+    public int hashCode(){
+        return 1;
     }
 }

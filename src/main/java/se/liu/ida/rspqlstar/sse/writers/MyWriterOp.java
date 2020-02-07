@@ -14,6 +14,7 @@ import se.liu.ida.rspqlstar.algebra.op.OpExtendQuad;
 import se.liu.ida.rspqlstar.algebra.op.OpWindow;
 import se.liu.ida.rspqlstar.util.MyFmtUtils;
 
+import java.io.OutputStream;
 import java.util.Iterator;
 
 public class MyWriterOp extends WriterOp {

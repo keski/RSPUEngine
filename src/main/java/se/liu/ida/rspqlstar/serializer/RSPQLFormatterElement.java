@@ -14,8 +14,8 @@ import se.liu.ida.rspqlstar.util.MyFmtUtils;
  * slotToString method.
  */
 
-public class MyFormatterElement extends FormatterElement {
-    public MyFormatterElement(IndentedWriter out, SerializationContext context) {
+public class RSPQLFormatterElement extends FormatterElement {
+    public RSPQLFormatterElement(IndentedWriter out, SerializationContext context) {
         super(out, context);
     }
 

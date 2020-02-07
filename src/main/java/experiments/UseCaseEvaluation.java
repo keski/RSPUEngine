@@ -145,7 +145,8 @@ public class UseCaseEvaluation {
             qexec.stopContinuousSelect();
 
             long[] results = asArray(qexec.executionTimes);
-            results = Arrays.copyOfRange(results, 10, results.length-1);
+            // log last minute
+            results = Arrays.copyOfRange(results, results.length - 31, results.length-1);
             logger.info(calculateMean(results)/1000_000.0);
             logger.info("\t");
             logger.info(calculateStandardDeviation(results)/1000_000.0);
@@ -155,7 +156,7 @@ public class UseCaseEvaluation {
         }).start();
 
         // Start query
-        PrintStream ps = new PrintStream(new FileOutputStream(new File(String.format("output/use-cae-%s.txt", type))));
+        PrintStream ps = new PrintStream(new FileOutputStream(new File(String.format("output/use-case-%s.txt", type))));
         //ps = System.out;
 
         ps.println(type + " with stream rate 1 event/s");
