@@ -2,14 +2,31 @@ package se.liu.ida.rspqlstar.algebra;
 
 import org.apache.jena.sparql.algebra.Op;
 import org.apache.jena.sparql.algebra.TransformCopy;
+import org.apache.jena.sparql.algebra.op.OpExt;
 import org.apache.jena.sparql.algebra.op.OpJoin;
 import org.apache.jena.sparql.algebra.op.OpSequence;
 import org.apache.jena.sparql.algebra.op.OpTable;
+import se.liu.ida.rspqlstar.algebra.op.OpWindow;
 
 import java.util.List;
 
 public class TransformFlatten extends TransformCopy {
-    public Op transform(OpSequence op, List<Op> elts){
+    @Override
+    public Op transform(final OpExt opExt) {
+        if(opExt instanceof OpWindow){
+            final OpWindow opWindow = (OpWindow) opExt;
+            final Op op = opWindow.getSubOp();
+            Op op2 = op;
+            if(op instanceof OpSequence){
+                op2 = transform((OpSequence) op);
+            }
+            return opWindow.copy(op2);
+        } else {
+            return opExt;
+        }
+    }
+
+    public Op transform(OpSequence op){
         OpSequence opSequence = OpSequence.create();
         opSequence.add(OpTable.unit());
         flatten(opSequence, op);
@@ -34,6 +51,7 @@ public class TransformFlatten extends TransformCopy {
         } else if(op instanceof OpTable){
             return opSequence;
         } else {
+            System.err.println("add op: " + op.getClass());
             opSequence.add(op);
         }
         return opSequence;

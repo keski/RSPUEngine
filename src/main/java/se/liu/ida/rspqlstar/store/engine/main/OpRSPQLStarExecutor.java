@@ -10,8 +10,6 @@ import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.iterator.QueryIterAssign;
-import org.apache.jena.sparql.engine.iterator.QueryIterSlice;
-import org.apache.jena.sparql.engine.iterator.QueryIteratorCloseable;
 import org.apache.jena.sparql.engine.main.OpExecutor;
 import org.apache.jena.sparql.engine.main.OpExecutorFactory;
 import org.apache.jena.sparql.expr.Expr;

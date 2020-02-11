@@ -1,64 +1,39 @@
 package evaluation;
 
 import org.apache.jena.query.ARQ;
+import org.apache.jena.query.Dataset;
+import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.query.QueryFactory;
-import org.apache.jena.sparql.function.FunctionRegistry;
-import org.apache.log4j.Logger;
-import se.liu.ida.rspqlstar.function.BayesianNetwork;
-import se.liu.ida.rspqlstar.function.Probability;
-import se.liu.ida.rspqlstar.function.ZadehLogic;
+import se.liu.ida.rspqlstar.function.RSPUFunctions;
 import se.liu.ida.rspqlstar.lang.RSPQLStar;
 import se.liu.ida.rspqlstar.query.RSPQLStarQuery;
 import se.liu.ida.rspqlstar.store.dataset.RDFStarStream;
 import se.liu.ida.rspqlstar.store.dataset.StreamingDatasetGraph;
-import se.liu.ida.rspqlstar.store.dictionary.IdFactory;
-import se.liu.ida.rspqlstar.store.dictionary.VarDictionary;
-import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.NodeDictionaryFactory;
-import se.liu.ida.rspqlstar.store.dictionary.referencedictionary.ReferenceDictionaryFactory;
 import se.liu.ida.rspqlstar.store.engine.RSPQLStarEngine;
 import se.liu.ida.rspqlstar.store.engine.RSPQLStarQueryExecution;
 import se.liu.ida.rspqlstar.stream.StreamFromFile;
 import se.liu.ida.rspqlstar.util.TimeUtil;
-import smile.Network;
+import se.liu.ida.rspqlstar.util.Utils;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-
-import static se.liu.ida.rspqlstar.util.Utils.*;
+import java.util.*;
 
 public class Evaluation1 {
     public static String root = "/Users/robke04/Documents/Git_projects/RSPQLStar/RSPU/RSPUEngine/";
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
         RSPQLStarEngine.register();
         ARQ.init();
+        RSPUFunctions.register();
 
-
+        Evaluation1.run1();
     }
 
-    public void run1(){
-
-        // Namespaces
-        String rspuNs = "http://w3id.org/rsp/rspu#";
-
-        // Probability distribution
-        FunctionRegistry.get().put(rspuNs + "lessThan", Probability.lessThan);
-        FunctionRegistry.get().put(rspuNs + "lessThanOrEqual", Probability.lessThanOrEqual);
-        FunctionRegistry.get().put(rspuNs + "greaterThan", Probability.greaterThan);
-        FunctionRegistry.get().put(rspuNs + "greaterThanOrEqual", Probability.greaterThanOrEqual);
-        FunctionRegistry.get().put(rspuNs + "between", Probability.between);
-        FunctionRegistry.get().put(rspuNs + "add", Probability.add);
-        FunctionRegistry.get().put(rspuNs + "subtract", Probability.subtract);
-
+    public static void run1() {
         long ref_time = 1574881152000L;
         TimeUtil.setOffset(new Date().getTime() - ref_time);
 
-        final String qString = readFile(root + "data/query-simple.rspqlstar");
+        String qString = Utils.readFile(root + "data/query-simple.rspqlstar");
+        qString = qString.replaceAll("\\$threshold", "0.6");
         final RSPQLStarQuery query = (RSPQLStarQuery) QueryFactory.create(qString, RSPQLStar.syntax);
 
         // Create streaming dataset
@@ -80,11 +55,13 @@ public class Evaluation1 {
         new Thread(() -> {
             TimeUtil.silentSleep(5000);
             stream.stop();
-            qexec.stopContinuousSelect();
+            qexec.stop();
         }).start();
 
         // Start query
-        qexec.execContinuousSelect(System.out, ref_time);
+        //qexec.execContinuousSelect(System.out, ref_time)
+        Dataset ds = DatasetFactory.create();
+        qexec.execContinuousConstruct(System.out, ref_time);
     }
 
 

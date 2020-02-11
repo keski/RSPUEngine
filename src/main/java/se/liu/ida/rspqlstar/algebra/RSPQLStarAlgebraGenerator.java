@@ -40,10 +40,13 @@ public class RSPQLStarAlgebraGenerator extends AlgebraGenerator {
         //op = Transformer.transform(new RSPQLStarTransform(), op);
         //System.err.println(op);
         //op = Transformer.transform(new TransformSplitWindow(), op);
+
+        op = Transformer.transform(new TransformStar(), op);
         op = Transformer.transform(new TransformFlatten(), op);
+
         //op = Transformer.transform(new TransformHeuristics(timePredicate), op);
         //op = Transformer.transform(new TransformFilterPlacement(), op);
-
+        System.err.println(op);
         return op;
     }
 

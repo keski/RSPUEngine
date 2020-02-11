@@ -81,7 +81,7 @@ public class ProbabilityDistribution extends BaseDatatype {
             return ref.create(args);
         } catch(Exception e){
             System.err.println(e);
-            throw new DatatypeFormatException(e.getMessage());
+            return null;
         }
     }
 

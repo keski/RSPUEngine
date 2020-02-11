@@ -10,16 +10,21 @@ import java.nio.file.Paths;
 
 public class Utils {
 
-    public static String readFile(String fileName) throws IOException {
-        if(fileName.startsWith("/")){
-            return new String(Files.readAllBytes(Paths.get(fileName)));
+    public static String readFile(String fileName) {
+        try {
+            if (fileName.startsWith("/")) {
+                return new String(Files.readAllBytes(Paths.get(fileName)));
+            }
+            final URL url = Utils.class.getClassLoader().getResource(fileName);
+            if (url == null) {
+                throw new IllegalStateException("File not found: " + fileName);
+            }
+            final File file = new File(url.getFile());
+            return new String(Files.readAllBytes(file.toPath()));
+        } catch (IOException e){
+            System.err.println(e.getMessage());
+            return null;
         }
-        final URL url = Utils.class.getClassLoader().getResource(fileName);
-        if(url == null) {
-            throw new IllegalStateException("File not found: " + fileName) ;
-        }
-        final File file = new File(url.getFile());
-        return new String(Files.readAllBytes(file.toPath()));
     }
 
     public static double calculateStandardDeviation(long[] numArray){

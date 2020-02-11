@@ -21,7 +21,6 @@ import se.liu.ida.rspqlstar.store.engine.RSPQLStarEngine;
 import se.liu.ida.rspqlstar.store.engine.RSPQLStarQueryExecution;
 import se.liu.ida.rspqlstar.stream.StreamFromFile;
 import se.liu.ida.rspqlstar.util.TimeUtil;
-import smile.Network;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -142,7 +141,7 @@ public class UseCaseEvaluation {
             s3.stop();
             s4.stop();
             s5.stop();
-            qexec.stopContinuousSelect();
+            qexec.stop();
 
             long[] results = asArray(qexec.executionTimes);
             // log last minute

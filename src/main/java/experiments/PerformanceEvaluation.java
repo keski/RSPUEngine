@@ -2,8 +2,6 @@ package experiments;
 
 import org.apache.jena.query.ARQ;
 import org.apache.jena.query.QueryFactory;
-import org.apache.jena.sparql.expr.NodeValue;
-import org.apache.jena.sparql.expr.nodevalue.NodeValueNode;
 import org.apache.jena.sparql.function.FunctionRegistry;
 import org.apache.log4j.Logger;
 import se.liu.ida.rspqlstar.function.BayesianNetwork;
@@ -16,7 +14,6 @@ import se.liu.ida.rspqlstar.store.dataset.StreamingDatasetGraph;
 import se.liu.ida.rspqlstar.store.dictionary.IdFactory;
 import se.liu.ida.rspqlstar.store.dictionary.VarDictionary;
 import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.NodeDictionaryFactory;
-import se.liu.ida.rspqlstar.store.dictionary.referencedictionary.ReferenceDictionary;
 import se.liu.ida.rspqlstar.store.dictionary.referencedictionary.ReferenceDictionaryFactory;
 import se.liu.ida.rspqlstar.store.engine.RSPQLStarEngine;
 import se.liu.ida.rspqlstar.store.engine.RSPQLStarQueryExecution;
@@ -25,7 +22,6 @@ import se.liu.ida.rspqlstar.util.TimeUtil;
 import smile.Network;
 
 import java.io.*;
-import java.sql.Time;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -119,7 +115,7 @@ public class PerformanceEvaluation {
         new Thread(() -> {
             TimeUtil.silentSleep(timeOutAfter);
             stream.stop();
-            qexec.stopContinuousSelect();
+            qexec.stop();
 
             long[] results = asArray(qexec.executionTimes);
             // log the last minute
