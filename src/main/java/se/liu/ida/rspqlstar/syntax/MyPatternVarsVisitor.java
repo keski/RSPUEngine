@@ -1,14 +1,13 @@
 package se.liu.ida.rspqlstar.syntax;
 
-import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.sparql.core.TriplePath;
 import org.apache.jena.sparql.core.Var;
+import org.apache.jena.sparql.core.VarExprList;
 import org.apache.jena.sparql.syntax.ElementPathBlock;
+import org.apache.jena.sparql.syntax.ElementSubQuery;
 import org.apache.jena.sparql.syntax.ElementTriplesBlock;
 import org.apache.jena.sparql.syntax.PatternVarsVisitor;
-import org.apache.jena.sparql.util.VarUtils;
-import se.liu.ida.rspqlstar.store.engine.main.pattern.Element;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -39,5 +38,21 @@ public class MyPatternVarsVisitor extends PatternVarsVisitor {
                 MyVarUtils.addVarsFromTriplePath(this.acc, tp);
             }
         }
+    }
+
+    public void visit(ElementSubQuery el) {
+        if(el instanceof ElementSubRSPQLStarQuery){
+            System.err.println("seeeeeeeeeeen!");
+        }
+        el.getQuery().setResultVars();
+        VarExprList x = el.getQuery().getProject();
+        this.acc.addAll(x.getVars());
+    }
+
+    public void visit(ElementSubRSPQLStarQuery el) {
+        System.err.println("Seen?");
+        el.getQuery().setResultVars();
+        VarExprList x = el.getQuery().getProject();
+        this.acc.addAll(x.getVars());
     }
 }

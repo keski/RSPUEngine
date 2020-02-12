@@ -59,9 +59,8 @@ public class Evaluation1 {
         }).start();
 
         // Start query
-        //qexec.execContinuousSelect(System.out, ref_time)
-        Dataset ds = DatasetFactory.create();
-        qexec.execContinuousConstruct(System.out, ref_time);
+        qexec.execContinuousSelect(System.out, ref_time);
+        //qexec.execContinuousConstruct(System.out, ref_time);
     }
 
 

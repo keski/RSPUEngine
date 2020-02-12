@@ -118,27 +118,7 @@ public class RSPQLStarQuerySerializer implements RSPQLStarQueryVisitor {
 
     @Override
     public void visitJsonResultForm(Query query) {
-        out.println("JSON {");
-        out.incIndent(BLOCK_INDENT);
-        out.incIndent(BLOCK_INDENT);
-        boolean first = true;
-        for (Map.Entry<String, Node> entry : query.getJsonMapping().entrySet()) {
-            String field = entry.getKey();
-            Node value = entry.getValue();
-            if (!first)
-                out.println(" ,");
-            first = false;
-            out.print('"');
-            out.print(field);
-            out.print('"');
-            out.print(" : ");
-            out.pad(15);
-            out.print(MyFmtUtils.stringForNode(value, prologue));
-        }
-        out.decIndent(BLOCK_INDENT);
-        out.decIndent(BLOCK_INDENT);
-        out.print(" }");
-        out.newline();
+        throw new IllegalStateException("visitJsonResultForm not supported");
     }
 
     @Override
@@ -381,16 +361,20 @@ public class RSPQLStarQuerySerializer implements RSPQLStarQueryVisitor {
 
     @Override
     public void visitRegisterForm(RSPQLStarQuery query) {
-        out.print("REGISTER STREAM ");
-        out.print(MyFmtUtils.stringForURI(query.getOutputStream(), query));
+        if(query.getOutputStream() != null) {
+            out.print("REGISTER STREAM ");
+            out.print(MyFmtUtils.stringForURI(query.getOutputStream(), query));
+        }
     }
 
     @Override
     public void visitComputedEveryForm(RSPQLStarQuery query) {
-        out.print(" COMPUTED EVERY ");
-        out.print(query.getComputedEvery().toString());
-        out.print(" AS");
-        out.newline();
+        if(query.getComputedEvery() != null) {
+            out.print(" COMPUTED EVERY ");
+            out.print(query.getComputedEvery().toString());
+            out.print(" AS");
+            out.newline();
+        }
     }
 }
 

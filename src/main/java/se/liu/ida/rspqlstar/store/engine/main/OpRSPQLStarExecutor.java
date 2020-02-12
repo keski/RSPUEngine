@@ -10,6 +10,9 @@ import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.iterator.QueryIterAssign;
+import org.apache.jena.sparql.engine.iterator.QueryIterProject;
+import org.apache.jena.sparql.engine.iterator.QueryIterProjectMerge;
+import org.apache.jena.sparql.engine.iterator.QueryIterRoot;
 import org.apache.jena.sparql.engine.main.OpExecutor;
 import org.apache.jena.sparql.engine.main.OpExecutorFactory;
 import org.apache.jena.sparql.expr.Expr;
@@ -350,5 +353,13 @@ public class OpRSPQLStarExecutor extends OpExecutor {
             }
         }
         return el;
+    }
+
+    protected QueryIterator execute(OpProject opProject, QueryIterator input) {
+        System.err.println(opProject.getVars());
+        for(Var var : opProject.getVars()){
+            encode(var);
+        }
+        return super.execute(opProject, input);
     }
 }

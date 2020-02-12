@@ -1,15 +1,13 @@
 package se.liu.ida.rspqlstar.query;
 
 import org.apache.jena.atlas.io.IndentedWriter;
-import org.apache.jena.ext.com.google.common.hash.HashCode;
-import org.apache.jena.graph.Node;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryVisitor;
 import org.apache.jena.query.Syntax;
+import org.apache.jena.sparql.core.Prologue;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.serializer.QuerySerializerFactory;
 import org.apache.jena.sparql.serializer.SerializerRegistry;
-import org.apache.jena.sparql.syntax.PatternVars;
 import se.liu.ida.rspqlstar.lang.NamedWindow;
 import se.liu.ida.rspqlstar.lang.RSPQLStar;
 import se.liu.ida.rspqlstar.serializer.RSPQLStarQueryVisitor;
@@ -29,10 +27,16 @@ public class RSPQLStarQuery extends Query {
         setSyntax(RSPQLStar.syntax);
     }
 
+    public RSPQLStarQuery(Prologue prologue){
+        super(prologue);
+        setSyntax(RSPQLStar.syntax);
+    }
+
     public List<String> getResultVars() {
-        if(isQueryResultStar())
+        if(isQueryResultStar()){
             findAndAddEmbeddedNamedVars();
-        return Var.varNames(this.projectVars.getVars());
+        }
+        return Var.varNames(projectVars.getVars());
     }
 
     public void setOutputStream(String outputStream){
@@ -64,8 +68,7 @@ public class RSPQLStarQuery extends Query {
         return Duration.parse(duration);
     }
 
-    public void visit(QueryVisitor v) // extend
-    {
+    public void visit(QueryVisitor v) {
         RSPQLStarQueryVisitor visitor = (RSPQLStarQueryVisitor) v;
         visitor.startVisit(this) ;
         visitor.visitResultForm(this) ;
@@ -80,8 +83,6 @@ public class RSPQLStarQuery extends Query {
             visitor.visitDescribeResultForm(this) ;
         if ( this.isAskType() )
             visitor.visitAskResultForm(this) ;
-        if ( this.isJsonType() )
-            visitor.visitJsonResultForm(this) ;
         visitor.visitDatasetDecl(this) ;
         visitor.visitQueryPattern(this) ;
         visitor.visitGroupBy(this) ;
@@ -106,10 +107,9 @@ public class RSPQLStarQuery extends Query {
     }
 
     public void findAndAddEmbeddedNamedVars() {
-        for(Var var : MyPatternVars.vars(new ArrayList<>(), this.getQueryPattern())){
+        for(Var var : MyPatternVars.embeddedVars(new ArrayList<>(), this.getQueryPattern())){
             addResultVar(var);
         }
-        // add window ref explicitly?
     }
 
     public int hashCode(){

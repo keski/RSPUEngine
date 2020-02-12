@@ -7,7 +7,7 @@ import org.apache.jena.query.QueryParseException;
 import org.apache.jena.shared.JenaException;
 import org.apache.jena.sparql.lang.SPARQLParser;
 import se.liu.ida.rspqlstar.lang.rspqlstar.ParseException;
-import se.liu.ida.rspqlstar.lang.rspqlstar.RSPQLStarParser11;
+import se.liu.ida.rspqlstar.lang.rspqlstar.RSPQLStarParser;
 import se.liu.ida.rspqlstar.lang.rspqlstar.TokenMgrError;
 import se.liu.ida.rspqlstar.query.RSPQLStarQuery;
 
@@ -15,7 +15,7 @@ import java.io.Reader;
 import java.io.StringReader;
 
 /**
- * Parser for SPARQL*.
+ * Parser for RSPQL*.
  * 
  * The parser may be used either by simply calling its method
  * {@link #parse(Query, String)} or by registering it in the
@@ -32,7 +32,7 @@ public class ParserRSPQLStar extends SPARQLParser
         query.setSyntax(RSPQLStar.syntax);
 
         final Reader in = new StringReader(queryString);
-        final RSPQLStarParser11 parser = new RSPQLStarParser11(in);
+        final RSPQLStarParser parser = new RSPQLStarParser(in);
 
         try {
             query.setStrict(true);

@@ -1,9 +1,11 @@
 package se.liu.ida.rspqlstar.store.engine;
 
+import org.apache.jena.base.Sys;
 import org.apache.jena.query.*;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
-import org.apache.jena.riot.ResultSetMgr;
+import org.apache.jena.riot.*;
+import org.apache.jena.riot.adapters.RDFWriterFactoryRIOT;
 import org.apache.jena.riot.resultset.ResultSetLang;
 import org.apache.jena.sparql.ARQConstants;
 import org.apache.jena.sparql.algebra.Algebra;
@@ -82,27 +84,16 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
             sdg.setTime(next_execution);
 
             final long t0 = System.currentTimeMillis();
-            Iterator<Quad> iter = exec.execConstructQuads();
+            Dataset ds = DatasetFactory.create();
+            exec.execConstructDataset(ds);
+            RDFDataMgr.write(System.out, ds, RDFFormat.TRIG);
+
+            System.err.println("Evaluated");
             exec.close();
-            iter.forEachRemaining(System.out::println);
 
             final long execTime = System.currentTimeMillis() - t0;
             System.out.println("Query executed in: " + execTime + " ms");
             next_execution += query.getComputedEvery().toMillis();
-        }
-    }
-
-
-    public Iterator<Quad> execContinuousConstruct2() {
-        checkNotClosed();
-        if (!query.isConstructType()) {
-            throw new QueryExecException("Wrong query type: " + query);
-        } else {
-
-            query.setQueryResultStar(true);
-            startQueryIterator();
-            Template template = query.getConstructTemplate();
-            return TemplateLib.calcQuads(template.getQuads(), queryIterator);
         }
     }
 

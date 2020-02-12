@@ -14,6 +14,7 @@ import org.apache.jena.sparql.syntax.*;
 import org.apache.jena.sparql.util.Context;
 import se.liu.ida.rspqlstar.algebra.op.OpWindow;
 import se.liu.ida.rspqlstar.syntax.ElementNamedWindow;
+import se.liu.ida.rspqlstar.syntax.ElementSubRSPQLStarQuery;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -21,8 +22,20 @@ import java.util.Iterator;
 import java.util.List;
 
 public class RSPQLStarAlgebraGenerator extends AlgebraGenerator {
+    private boolean fixedFilterPosition;
     public static Node timePredicate;
     private Context context;
+    private int subQueryDepth;
+
+    public RSPQLStarAlgebraGenerator(){
+        super();
+    }
+
+    public RSPQLStarAlgebraGenerator(Context context, int depth) {
+        this.fixedFilterPosition = false;
+        this.context = context;
+        this.subQueryDepth = depth;
+    }
 
     public Op compile(Query query) {
         Op op = compile(query.getQueryPattern());
@@ -137,13 +150,18 @@ public class RSPQLStarAlgebraGenerator extends AlgebraGenerator {
             return compileBasicPattern(((ElementTriplesBlock)elt).getPattern());
         } else if (elt instanceof ElementPathBlock) {
             return compilePathBlock(((ElementPathBlock)elt).getPattern());
-        } else if (elt instanceof ElementSubQuery) {
-            return compileElementSubquery((ElementSubQuery)elt);
+        } else if (elt instanceof ElementSubRSPQLStarQuery) {
+            return compileElementSubquery((ElementSubRSPQLStarQuery)elt);
         } else if (elt instanceof ElementData) {
             return compileElementData((ElementData)elt);
         } else {
             return elt == null ? OpNull.create() : this.compileUnknownElement(elt, "compile(Element)/Not a structural element: " + Lib.className(elt));
         }
+    }
+
+    protected Op compileElementSubquery(ElementSubRSPQLStarQuery eltSubQuery) {
+        final RSPQLStarAlgebraGenerator gen = new RSPQLStarAlgebraGenerator(context, subQueryDepth + 1);
+        return gen.compile(eltSubQuery.getQuery());
     }
 
 }

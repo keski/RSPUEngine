@@ -140,3 +140,7 @@ environment. For some of the processing, the node IDs have to be decoded into re
 Jena nodes. This is done by either: 1) looking up the corresponding values in the
 dictionaries, 2) wrapping the ID-based iterator representation in a `DecodingQuadsIterator`, or 3) 
 and iterator with bindings in `DecodeBindingsIterator`. 
+
+# Known limitations
+- Scope of variables in subqueries is not respected.
+- Query result star does not work for subqueries.
