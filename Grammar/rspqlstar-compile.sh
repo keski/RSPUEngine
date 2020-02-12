@@ -29,8 +29,8 @@
 ##      $ unalias sed
 
 DIR=../src/main/java/se/liu/ida/rspqlstar/lang/rspqlstar/
-FILE=rspqlstar_11.jj
-CLASS=RSPQLStarParser11
+FILE=rspqlstar.jj
+CLASS=RSPQLStarParser
 
 rm ${DIR}*
 
@@ -68,7 +68,8 @@ echo "---- Fixing Java warnings in ${CLASS} ..."
 
 F="$DIR/${CLASS}.java"
 
-sed -e 's/public class /\n@SuppressWarnings("all")\npublic class /' < $F > F 
+sed -e 's/public class /@SuppressWarnings("all")\
+public class /' < $F > F
 
 mv F $F
 

@@ -16,27 +16,14 @@
  * limitations under the License.
  */
 
-/*
- * This file is an extended version of a file of Apache Jena.
- * The original file can be found at:
- *   https://github.com/apache/jena/blob/master/jena-arq/Grammar/sparql_11.jj
- * 
- * The extension consists of grammar rules for SPARQL* as documented
- * in Sec.5.1 of https://arxiv.org/pdf/1406.3399.pdf
- * The new grammar rules can be found at the end of this file. The
- * grammar rules that have been modified can be found by search for
- * any of the names of the new rules.
- * 
- * Olaf Hartig http://olafhartig.de/
- */
 options
 {
     JAVA_UNICODE_ESCAPE = true ;
     UNICODE_INPUT = false ;
   STATIC = false ;
 }
-PARSER_BEGIN(RSPQLStarParser11)
-package se.liu.ida.rspqlstar.lang.rspqlstar ;
+PARSER_BEGIN(RSPQLStarParser)
+package se.liu.ida.rspqlstar.lang.rspqlstar;
 import org.apache.jena.graph.* ;
 import org.apache.jena.query.* ;
 import org.apache.jena.sparql.core.Var ;
@@ -44,16 +31,19 @@ import org.apache.jena.sparql.syntax.* ;
 import org.apache.jena.sparql.expr.* ;
 import org.apache.jena.sparql.path.* ;
 import org.apache.jena.sparql.expr.aggregate.* ;
+import org.apache.jena.sparql.expr.aggregate.lib.* ;
 import org.apache.jena.update.* ;
 import org.apache.jena.sparql.modify.request.* ;
+import org.apache.jena.sparql.core.Quad ;
 import se.liu.ida.rdfstar.tools.sparqlstar.lang.Node_TripleStarPattern ;
 import se.liu.ida.rspqlstar.lang.RSPQLParserBase ;
+import se.liu.ida.rspqlstar.query.RSPQLStarQuery ;
 import se.liu.ida.rspqlstar.syntax.ElementNamedWindow;
+import se.liu.ida.rspqlstar.syntax.ElementSubRSPQLStarQuery;
 
-public class RSPQLStarParser11 extends RSPQLParserBase
+public class RSPQLStarParser extends RSPQLParserBase
 {}
-PARSER_END(RSPQLStarParser11)
-void QueryUnit(): { }
+PARSER_END(RSPQLStarParser)
 void QueryUnit(): { }
 {
   ByteOrderMark()
@@ -112,7 +102,6 @@ void Register() : { String outputStream ; Token t ; }
   )?
   <AS>
 }
-
 void SelectQuery() : { }
 {
   SelectClause()
@@ -139,11 +128,19 @@ void SelectClause() : { Var v ; Expr expr ; Node n ; }
     (
       v = Var() { getQuery().addResultVar(v) ; }
     |
+      ( LOOKAHEAD(2)
+        expr = BuiltInCall() { getQuery().addResultVar((Var)null, expr) ; }
+      | expr = FunctionCall() { getQuery().addResultVar((Var)null, expr) ; }
+      | n = RDFLiteral() { getQuery().addResultVar((Var)null, NodeValue.makeNode(n)) ; }
+      | n = NumericLiteral() { getQuery().addResultVar((Var)null, NodeValue.makeNode(n)) ; }
+      | n = BooleanLiteral() { getQuery().addResultVar((Var)null, NodeValue.makeNode(n)) ; }
+      )
+    |
       (
         { v = null ; }
         <LPAREN>
         expr = Expression()
-        <AS> v = Var()
+        ( <AS> v = Var() ) ?
         <RPAREN>
         { getQuery().addResultVar(v, expr) ; }
       )
@@ -155,7 +152,7 @@ void SelectClause() : { Var v ; Expr expr ; Node n ; }
   { setAllowAggregatesInExpressions(false) ; }
 }
 void ConstructQuery() : { Template t ;
-                          TripleCollectorBGP acc = new TripleCollectorBGP() ; }
+                          QuadAcc acc = new QuadAcc() ; }
 {
  <CONSTRUCT>
    { getQuery().setQueryConstructType() ; }
@@ -169,15 +166,13 @@ void ConstructQuery() : { Template t ;
     ( DatasetClause() )*
     <WHERE>
     <LBRACE>
-    (TriplesTemplate(acc))?
+    ConstructQuads(acc)
     <RBRACE>
     SolutionModifier()
     {
-      t = new Template(acc.getBGP()) ;
+      t = new Template(acc) ;
       getQuery().setConstructTemplate(t) ;
-      ElementPathBlock epb = new ElementPathBlock(acc.getBGP()) ;
-      ElementGroup elg = new ElementGroup() ;
-      elg.addElement(epb) ;
+   ElementGroup elg = createQueryPattern(t);
       getQuery().setQueryPattern(elg) ;
     }
  )
@@ -204,6 +199,7 @@ void AskQuery() : {}
   WhereClause()
   SolutionModifier()
 }
+
 void DatasetClause() : {}
 {
   <FROM>
@@ -221,6 +217,7 @@ void NamedClause() : {}
   <NAMED>
   ( NamedGraphClause() | NamedWindowClause() )
 }
+
 void NamedGraphClause() : { String iri ; }
 {
   iri = SourceSelector()
@@ -228,6 +225,7 @@ void NamedGraphClause() : { String iri ; }
     getQuery().addNamedGraphURI(iri) ;
   }
 }
+
 void NamedWindowClause() : { String windowIri ; String streamIri ; Token range ; Token step ;}
 {
   <WINDOW>
@@ -244,6 +242,7 @@ void NamedWindowClause() : { String windowIri ; String streamIri ; Token range ;
     getQuery().addNamedWindow(windowIri, streamIri, range.image, step.image) ;
   }
 }
+
 String SourceSelector() : { String iri ; }
 {
   iri = iri() { return iri ; }
@@ -346,8 +345,22 @@ void ValuesClause() : { Token t ; }
 }
 void Update() : { }
 {
-   Prologue()
-   (Update1() ( <SEMICOLON> Update() )? )?
+  Prologue()
+  (
+    Update1()
+    (
+      LOOKAHEAD( <SEMICOLON> Prologue() ( <LOAD> | <CLEAR> | <DROP> | <ADD> |
+                   <MOVE> | <COPY> | <CREATE> | <WITH> | <DELETE> | <INSERT> |
+                   <USING> | <INSERT_DATA> | <DELETE_DATA> | <DELETE_WHERE> ) )
+      <SEMICOLON>
+      Prologue()
+      Update1()
+    )*
+    (
+      <SEMICOLON>
+      Prologue()
+    )?
+  )?
 }
 void Update1() : { Update up = null ; }
 {
@@ -525,7 +538,31 @@ void Quads(QuadAccSink acc) : { }
 void QuadsNotTriples(QuadAccSink acc) : {Node gn ; Node prev = acc.getGraph() ; }
 {
     <GRAPH>
-       gn = VarOrIri()
+       gn = VarOrBlankNodeOrIri()
+    { setAccGraph(acc, gn) ; }
+    <LBRACE>
+    (TriplesTemplate(acc))?
+    <RBRACE>
+    { setAccGraph(acc, prev) ; }
+}
+void ConstructQuads(QuadAcc acc) : {}
+{
+    ( TriplesTemplate(acc))?
+    (
+       ConstructQuadsNotTriples(acc)
+       (<DOT>)?
+       ( TriplesTemplate(acc))?
+    )*
+}
+void ConstructQuadsNotTriples(QuadAccSink acc) :
+     { Node gn = Quad.defaultGraphNodeGenerated ;
+       Node prev = acc.getGraph() ;
+     }
+{
+    (
+      <GRAPH>
+      gn = VarOrBlankNodeOrIri()
+    )?
     { setAccGraph(acc, gn) ; }
     <LBRACE>
     (TriplesTemplate(acc))?
@@ -535,7 +572,8 @@ void QuadsNotTriples(QuadAccSink acc) : {Node gn ; Node prev = acc.getGraph() ; 
 void TriplesTemplate(TripleCollector acc) : { }
 {
     TriplesSameSubject(acc)
-    (<DOT> (TriplesTemplate(acc))?)?
+    (LOOKAHEAD(2) (<DOT>) TriplesSameSubject(acc))*
+    (<DOT>)?
 }
 Element GroupGraphPattern() : { Element el = null ; Token t ; }
 {
@@ -545,8 +583,8 @@ Element GroupGraphPattern() : { Element el = null ; Token t ; }
     { startSubSelect(beginLine, beginColumn) ; }
     SubSelect()
     {
-      Query q = endSubSelect(beginLine, beginColumn) ;
-      el = new ElementSubQuery(q) ;
+      RSPQLStarQuery q = endSubSelect(beginLine, beginColumn) ;
+      el = new ElementSubRSPQLStarQuery(q) ;
     }
   | el = GroupGraphPatternSub()
   )
@@ -606,6 +644,12 @@ Element GraphPatternNotTriples() : { Element el = null ; }
    el = Bind()
  |
    el = InlineData()
+ |
+   el = Assignment()
+ |
+   el = ExistsElt()
+ |
+   el = NotExistsElt()
  )
  { return el ; }
 }
@@ -634,11 +678,11 @@ Element ServiceGraphPattern() : { Element el ; Node n ; boolean silent = false ;
   el = GroupGraphPattern()
     { return new ElementService(n, el, silent) ; }
 }
-Element Bind() : { Var v ; Expr expr ; Node n ; }
+Element Bind() : { Var v ; Expr expr ; }
 {
   <BIND>
   <LPAREN>
-  ( expr = Expression() | n = EmbTP() { expr = asExpr(n); } )
+  expr = Expression()
   <AS>
   v = Var()
   <RPAREN>
@@ -706,7 +750,30 @@ Node DataBlockValue() : { Node n ; String iri ; }
 | n = RDFLiteral() { return n ; }
 | n = NumericLiteral() { return n ; }
 | n = BooleanLiteral() { return n ; }
+| n = BlankNode() { return n ; }
 | <UNDEF> { return null ; }
+}
+Element Assignment() : { Var v ; Expr expr ; }
+{
+  <LET>
+  <LPAREN>
+  v = Var()
+  <ASSIGN>
+  expr = Expression()
+  <RPAREN>
+    { return new ElementAssign(v, expr) ; }
+}
+Element ExistsElt() : { Element el ; }
+{
+    <EXISTS>
+    el = GroupGraphPattern()
+    { return new ElementExists(el) ; }
+}
+Element NotExistsElt() : { Element el ; }
+{
+    <NOT> <EXISTS>
+    el = GroupGraphPattern()
+    { return new ElementNotExists(el) ; }
 }
 Element MinusGraphPattern() : { Element el ; }
 {
@@ -790,12 +857,12 @@ ExprList ExpressionList() : { Expr expr = null ; ExprList exprList = new ExprLis
   )
   { return exprList ; }
 }
-Template ConstructTemplate() : { TripleCollectorBGP acc = new TripleCollectorBGP();
-                                 Template t = new Template(acc.getBGP()) ; }
+Template ConstructTemplate() : { QuadAcc acc = new QuadAcc() ;
+                                 Template t = new Template (acc);}
 {
     { setInConstructTemplate(true) ; }
   <LBRACE>
-    (ConstructTriples(acc))?
+    ConstructQuads(acc)
   <RBRACE>
     { setInConstructTemplate(false) ;
       return t ; }
@@ -803,7 +870,8 @@ Template ConstructTemplate() : { TripleCollectorBGP acc = new TripleCollectorBGP
 void ConstructTriples(TripleCollector acc) : { }
 {
     TriplesSameSubject(acc)
-    (<DOT> (ConstructTriples(acc))? )?
+    (LOOKAHEAD(2) (<DOT>) TriplesSameSubject(acc))*
+    (<DOT>)?
 }
 void TriplesSameSubject(TripleCollector acc) : { Node s ; }
 {
@@ -898,6 +966,13 @@ void ObjectPath(Node s, Node p, Path path, TripleCollector acc): { Node o ; }
   o = GraphNodePath(tempAcc)
   { insert(tempAcc, mark, s, p, path, o) ; insert(acc, tempAcc) ; }
 }
+Path PathUnit() : { Path p ; }
+{
+  ByteOrderMark()
+  p = Path()
+  <EOF>
+  { return p ; }
+}
 Path Path() : { Path p ; }
 {
   p = PathAlternative() { return p ; }
@@ -916,6 +991,8 @@ Path PathSequence() : { Path p1 , p2 ; }
     p1 = PathEltOrInverse()
     ( <SLASH> p2 = PathEltOrInverse()
       { p1 = PathFactory.pathSeq(p1, p2) ; }
+    | <CARAT> p2 = PathElt()
+      { p1 = PathFactory.pathSeq(p1, new P_Inverse(p2)) ; }
     )*
    { return p1; }
 }
@@ -939,6 +1016,29 @@ Path PathMod(Path p) : { long i1 ; long i2 ; }
    ( <QMARK> { return PathFactory.pathZeroOrOne(p) ; }
    | <STAR> { return PathFactory.pathZeroOrMore1(p) ; }
    | <PLUS> { return PathFactory.pathOneOrMore1(p) ; }
+   | <LBRACE>
+       ( <STAR> <RBRACE> { return PathFactory.pathZeroOrMoreN(p) ; }
+       | <PLUS> <RBRACE> { return PathFactory.pathOneOrMoreN(p) ; }
+       |
+          i1 = Integer()
+          ( <COMMA>
+            (
+              <RBRACE>
+              { return PathFactory.pathMod(p, i1, PathFactory.UNSET) ; }
+            |
+              i2 = Integer() <RBRACE>
+              { return PathFactory.pathMod(p, i1, i2) ; }
+            )
+          |
+            <RBRACE>
+                     { return PathFactory.pathFixedLength(p, i1) ; }
+          )
+       |
+         <COMMA>
+         i2 = Integer()
+         <RBRACE>
+           { return PathFactory.pathMod(p, PathFactory.UNSET, i2) ; }
+       )
    )
 }
 Path PathPrimary() : { String str ; Path p ; Node n ; }
@@ -950,6 +1050,21 @@ Path PathPrimary() : { String str ; Path p ; Node n ; }
      { p = PathFactory.pathLink(nRDFtype) ; }
   | <BANG> p = PathNegatedPropertySet()
   | <LPAREN> p = Path() <RPAREN>
+  |
+     <DISTINCT><LPAREN>
+     p = Path()
+     { p = PathFactory.pathDistinct(p) ; }
+     <RPAREN>
+  |
+     <SHORTEST> <LPAREN>
+     p = Path()
+     { p = PathFactory.pathShortest(p) ; }
+     <RPAREN>
+  |
+     <MULTI><LPAREN>
+     p = Path()
+     { p = PathFactory.pathMulti(p) ; }
+     <RPAREN>
   )
  { return p ; }
 }
@@ -1285,8 +1400,16 @@ Expr BuiltInCall() : { Expr expr ; Expr expr1 = null ; Expr expr2 = null ;
   | <SHA256> <LPAREN> expr1 = Expression() <RPAREN> { return new E_SHA256(expr1) ; }
   | <SHA384> <LPAREN> expr1 = Expression() <RPAREN> { return new E_SHA384(expr1) ; }
   | <SHA512> <LPAREN> expr1 = Expression() <RPAREN> { return new E_SHA512(expr1) ; }
+  | <VERSION> <NIL> { return new E_Version(); }
   | <COALESCE> a = ExpressionList()
     { return new E_Coalesce(a) ; }
+  | <CALL>
+      { a = new ExprList() ; }
+    <LPAREN>
+      expr = Expression() { a.add(expr) ; }
+      ( <COMMA> expr = Expression() { a.add(expr) ; } )*
+    <RPAREN>
+    { return new E_Call(a) ; }
   | <IF> <LPAREN> expr = Expression() <COMMA>
                   expr1 = Expression() <COMMA>
                   expr2 = Expression() <RPAREN>
@@ -1387,9 +1510,33 @@ Expr Aggregate() : { Aggregator agg = null ; String sep = null ;
     <LPAREN>
     (t = <DISTINCT> { distinct = true ; })?
     expr = Expression()
-    (<SEMICOLON> <SEPARATOR> <EQ> sep=String())?
+    (LOOKAHEAD(2)
+       ( <SEMICOLON> <SEPARATOR> <EQ> sep=String()
+           (<SEMICOLON> <ORDER><BY> expr2 = Expression() { ordered.add(expr2) ; })?
+       )
+       |
+       (<SEMICOLON> <ORDER><BY> expr2 = Expression() { ordered.add(expr2) ; } )
+    )?
     <RPAREN>
     { agg = AggregatorFactory.createGroupConcat(distinct, expr, sep, ordered) ; }
+  | t = <STDEV> <LPAREN> ( <DISTINCT> { distinct = true ; } )? expr = Expression() <RPAREN>
+    { agg = AggregatorFactory.createCustom(AggURI.stdev, distinct, expr) ; }
+  | t = <STDEV_SAMP> <LPAREN> ( <DISTINCT> { distinct = true ; } )? expr = Expression() <RPAREN>
+    { agg = AggregatorFactory.createCustom(AggURI.stdev_samp, distinct, expr) ; }
+  | t = <STDEV_POP> <LPAREN> ( <DISTINCT> { distinct = true ; } )? expr = Expression() <RPAREN>
+    { agg = AggregatorFactory.createCustom(AggURI.stdev_pop, distinct, expr) ; }
+  | t = <VARIANCE> <LPAREN> ( <DISTINCT> { distinct = true ; } )? expr = Expression() <RPAREN>
+    { agg = AggregatorFactory.createCustom(AggURI.variance, distinct, expr) ; }
+  | t = <VAR_SAMP> <LPAREN> ( <DISTINCT> { distinct = true ; } )? expr = Expression() <RPAREN>
+    { agg = AggregatorFactory.createCustom(AggURI.var_samp, distinct, expr) ; }
+  | t = <VAR_POP> <LPAREN> ( <DISTINCT> { distinct = true ; } )? expr = Expression() <RPAREN>
+    { agg = AggregatorFactory.createCustom(AggURI.var_pop, distinct, expr) ; }
+  | t = <AGG>
+    { String iri ; }
+    iri = iri()
+    { Args a = new Args() ; }
+    a = ArgList()
+    { agg = AggregatorFactory.createCustom(iri, a) ; }
   )
   {
     if ( ! getAllowAggregatesInExpressions() )
@@ -1529,6 +1676,7 @@ TOKEN [IGNORE_CASE] :
 | < SELECT: "select" >
 | < DISTINCT: "distinct" >
 | < REDUCED: "reduced" >
+| < JSON: "json" >
 | < DESCRIBE: "describe" >
 | < CONSTRUCT: "construct" >
 | < ASK: "ask" >
@@ -1550,6 +1698,7 @@ TOKEN [IGNORE_CASE] :
 | < MINUS_P: "minus" >
 | < BIND: "bind" >
 | < SERVICE: "service" >
+| < LET: "let" >
 | < EXISTS: "exists" >
 | < NOT: "not" >
 | < AS: "as" >
@@ -1562,6 +1711,7 @@ TOKEN [IGNORE_CASE] :
 | < MAX: "max" >
 | < SUM: "sum" >
 | < AVG: "avg" >
+| < MODE: "mode" >
 | < STDEV: "stdev" >
 | < STDEV_SAMP: "stdev_samp" >
 | < STDEV_POP: "stdev_pop" >
@@ -1578,6 +1728,10 @@ TOKEN [IGNORE_CASE] :
 | < BNODE: "bnode" >
 | < IRI: "iri" >
 | < URI: "uri" >
+| < CAST: "cast" >
+| < CALL: "call" >
+| < MULTI: "multi" >
+| < SHORTEST: "shortest" >
 | < STR: "str" >
 | < STRLANG: "strlang" >
 | < STRDT: "strdt" >
@@ -1619,6 +1773,7 @@ TOKEN [IGNORE_CASE] :
 | < NOW: "NOW" >
 | < UUID: "UUID" >
 | < STRUUID: "STRUUID" >
+| < VERSION: "VERSION" >
 | < MD5: "MD5" >
 | < SHA1: "SHA1" >
 | < SHA224: "SHA224" >
@@ -1735,6 +1890,7 @@ TOKEN :
 | < SLASH: "/" >
 | < DATATYPE: "^^">
 | < AT: "@">
+| < ASSIGN: ":=">
 | < VBAR: "|" >
 | < CARAT: "^" >
 | < FPATH: "->" >
@@ -1783,29 +1939,29 @@ TOKEN:
   <#UNKNOWN: (~[" ","\t","\n","\r","\f" ])+ >
 }
 Node VarOrTermOrEmbTP() : {Node n = null ; }
-{
-  ( n = Var() | n = GraphTerm() | n = EmbTP() )
-  { return n ; }
-}
-Node EmbTP() : {Node s = null ; Node p = null ; Node o = null ; }
-{
-  <LTLT>
-  s = VarOrBlankNodeOrIriOrEmbTP()
-  p = Verb()
-  o = VarOrBlankNodeOrIriOrEmbTP()
-  <GTGT>
-  { return new Node_TripleStarPattern(new Triple(s,p,o)) ; }
-}
-Node VarOrBlankNodeOrIriOrEmbTP() : {Node n = null ; String iri ; }
-{
-  (
-      n = Var()
-    | n = BlankNode()
-    | iri = iri() { n = createNode(iri) ; }
-    | n = RDFLiteral()
-    | n = NumericLiteral()
-    | n = BooleanLiteral()
-    | n = EmbTP()
-  )
-  { return n ; }
-}
+ {
+   ( n = Var() | n = GraphTerm() | n = EmbTP() )
+   { return n ; }
+ }
+ Node EmbTP() : {Node s = null ; Node p = null ; Node o = null ; }
+ {
+   <LTLT>
+   s = VarOrBlankNodeOrIriOrEmbTP()
+   p = Verb()
+   o = VarOrBlankNodeOrIriOrEmbTP()
+   <GTGT>
+   { return new Node_TripleStarPattern(new Triple(s,p,o)) ; }
+ }
+ Node VarOrBlankNodeOrIriOrEmbTP() : {Node n = null ; String iri ; }
+ {
+   (
+       n = Var()
+     | n = BlankNode()
+     | iri = iri() { n = createNode(iri) ; }
+     | n = RDFLiteral()
+     | n = NumericLiteral()
+     | n = BooleanLiteral()
+     | n = EmbTP()
+   )
+   { return n ; }
+ }
