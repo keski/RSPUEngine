@@ -69,7 +69,7 @@ public class DatasetGraphStar extends AbstractDatasetGraph {
 
     @Override
     public Graph getDefaultGraph() {
-        logger.debug("Accessing default graph of DatasetGraphStar, was this intentional? Returning empty graph.");
+        //logger.debug("Accessing default graph of DatasetGraphStar, was this intentional? Returning empty graph.");
         return ModelFactory.createDefaultModel().getGraph();
     }
 

@@ -28,11 +28,15 @@ public class RDFStarStreamElement implements StreamRDF {
     final ReferenceDictionary refT = ReferenceDictionaryFactory.get();
 
     public RDFStarStreamElement(){
-        this(null);
+        this(0);
     }
 
-    public RDFStarStreamElement(Date time){
-        this.time = time != null ? time.getTime() : 0;
+    public RDFStarStreamElement(Date date){
+        this(date.getTime());
+    }
+
+    public RDFStarStreamElement(long time){
+        this.time = time;
         index = new HashIndex(Field.G, Field.S, Field.P, Field.O);
     }
 
@@ -108,5 +112,9 @@ public class RDFStarStreamElement implements StreamRDF {
 
     public Iterator<IdBasedQuad> iterateAll(){
         return index.iterateAll();
+    }
+
+    public String toString(){
+        return "Time: " + time + ", Payload: " + index.size();
     }
 }

@@ -4,11 +4,10 @@
 # - Bayes: The most likely medical status (Normal or Abnormal) given the heart-rate state as evidence.
 
 BASE <http://base/>
-PREFIX : <http://www.example.org/ontology#>
+PREFIX ecare: <http://www.example.org/ecare#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 PREFIX sosa: <http://www.w3.org/ns/sosa/>
 PREFIX rspu: <http://w3id.org/rsp/rspu#>
-PREFIX rspu-fn: <http://w3id.org/rsp/rspu/fn#>
 PREFIX bn-ns: <http://w3id.org/rsp/rspu/bn#>
 
 REGISTER STREAM <all> COMPUTED EVERY PT1S AS
@@ -18,21 +17,21 @@ FROM NAMED WINDOW <w> ON <http://ecareathome/stream/heartrate> [RANGE PT1S STEP 
 WHERE {
    WINDOW <w> {
       GRAPH ?g {
-          ?event a :HeartRate .
+          ?event a ecare:HeartRateEvent .
           ?event sosa:hasSimpleResult ?hr .
           << ?event a ?node >> rspu:hasState ?state .
-          << ?event a :HighHeartRateEvent >> rspu:degree ?degree1 .
-          << ?event a :VeryHighHeartRateEvent >> rspu:degree ?degree2 .
+          << ?event a ecare:HighHeartRateEvent >> rspu:degreeOfTruth ?degree1 .
+          << ?event a ecare:VeryHighHeartRateEvent >> rspu:degreeOfTruth ?degree2 .
 
           # Fuzzy
-          BIND(rspu-fn:disjunction(?degree1, ?degree2) AS ?unc1)
+          BIND(rspu:disjunction(?degree1, ?degree2) AS ?unc1)
           # Probability
-          BIND(rspu-fn:greaterThan(?hr, 100) AS ?unc2)
+          BIND(rspu:greaterThan(?hr, 100) AS ?unc2)
           # Bayes
-          BIND(rspu-fn:map(<http://example.org/bn/medical-small>, :MedicalStatus, ?node, ?state) AS ?unc3)
+          BIND(rspu:map(<http://example.org/bn/medical-small>, ecare:MedicalStatus, ?node, ?state) AS ?unc3)
           # Bayes large
-          BIND(URI(CONCAT("http://www.example.org/ontology#x", STR(xsd:integer(ROUND(RAND()*20)) * 5), "g")) AS ?obs)
-          BIND(rspu-fn:map(<http://example.org/bn/medical-large>, :cho_0, :meal_0, ?obs) AS ?unc4)
+          BIND(URI(CONCAT("http://www.example.org/ecare#x", STR(xsd:integer(ROUND(RAND()*9)) * 2 + 2), "mmol_l")) AS ?obs)
+          BIND(rspu:map(<http://example.org/bn/medical-large>, ecare:bg_10, ecare:bg_20, ?obs) AS ?unc4)
       }
       ?g ?p ?time .
    }

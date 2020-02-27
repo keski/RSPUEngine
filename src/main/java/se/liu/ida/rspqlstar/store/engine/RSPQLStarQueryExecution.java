@@ -1,39 +1,19 @@
 package se.liu.ida.rspqlstar.store.engine;
 
-import org.apache.jena.base.Sys;
 import org.apache.jena.query.*;
-import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.*;
-import org.apache.jena.riot.adapters.RDFWriterFactoryRIOT;
 import org.apache.jena.riot.resultset.ResultSetLang;
-import org.apache.jena.sparql.ARQConstants;
-import org.apache.jena.sparql.algebra.Algebra;
-import org.apache.jena.sparql.algebra.Op;
-import org.apache.jena.sparql.algebra.Transformer;
-import org.apache.jena.sparql.algebra.op.OpSlice;
-import org.apache.jena.sparql.core.DatasetGraph;
-import org.apache.jena.sparql.core.Quad;
-import org.apache.jena.sparql.core.Substitute;
 import org.apache.jena.sparql.engine.*;
-import org.apache.jena.sparql.engine.binding.Binding;
-import org.apache.jena.sparql.engine.binding.BindingRoot;
-import org.apache.jena.sparql.engine.binding.BindingUtils;
-import org.apache.jena.sparql.modify.TemplateLib;
-import org.apache.jena.sparql.syntax.Template;
 import org.apache.log4j.Logger;
-import se.liu.ida.rspqlstar.algebra.RSPQLStarAlgebra;
-import se.liu.ida.rspqlstar.algebra.TransformFlatten;
 import se.liu.ida.rspqlstar.query.RSPQLStarQuery;
 import se.liu.ida.rspqlstar.store.dataset.StreamingDatasetGraph;
+import se.liu.ida.rspqlstar.stream.ContinuousListener;
 import se.liu.ida.rspqlstar.util.TimeUtil;
 
-import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
-import java.sql.Time;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.Iterator;
+import java.util.List;
 
 public class RSPQLStarQueryExecution extends QueryExecutionBase {
     private final Logger logger = Logger.getLogger(RSPQLStarQuery.class);
@@ -42,6 +22,7 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
     public StreamingDatasetGraph sdg;
     private boolean closed;
     private boolean stop = false;
+    private List<ContinuousListener> continuousListener = new ArrayList<>();
 
     // Collected execution times
     public ArrayList<Long> executionTimes = new ArrayList<>();
@@ -75,25 +56,40 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
         }
     }
 
-    public void execContinuousConstruct(PrintStream out, long ref_time) {
-        long next_execution = ref_time;
-        stop = false;
-        while(!stop) {
-            final RSPQLStarQueryExecution exec = new RSPQLStarQueryExecution(query, sdg);
-            delay(next_execution);
-            sdg.setTime(next_execution);
+    public Runnable execContinuousConstruct() {
+        final Runnable r = () -> {
+            long nextExecution = TimeUtil.getTime().getTime();
+            while(!stop) {
+                final RSPQLStarQueryExecution exec = new RSPQLStarQueryExecution(query, sdg);
+                delay(nextExecution);
+                sdg.setTime(nextExecution);
+                final long t0 = System.currentTimeMillis();
 
-            final long t0 = System.currentTimeMillis();
-            Dataset ds = DatasetFactory.create();
-            exec.execConstructDataset(ds);
-            RDFDataMgr.write(System.out, ds, RDFFormat.TRIG);
+                // Execute
+                final Dataset ds = DatasetFactory.create();
+                exec.execConstructDataset(ds);
+                logger.debug(query.getOutputStream() + " empty? " + ds.isEmpty());
+                push(ds);
+                exec.close();
 
-            System.err.println("Evaluated");
-            exec.close();
+                final long execTime = System.currentTimeMillis() - t0;
+                logger.info("Query executed in: " + execTime + " ms");
+                nextExecution += query.getComputedEvery().toMillis();
+            }
+        };
+        return r;
+    }
 
-            final long execTime = System.currentTimeMillis() - t0;
-            System.out.println("Query executed in: " + execTime + " ms");
-            next_execution += query.getComputedEvery().toMillis();
+    private void push(Dataset ds){
+        for(ContinuousListener listener: continuousListener){
+            logger.info("push ds to " + listener + " for " + query.getOutputStream());
+            listener.push(ds);
+        }
+    }
+
+    private void push(ResultSet rs){
+        for(ContinuousListener listener: continuousListener){
+            listener.push(rs);
         }
     }
 
@@ -122,26 +118,25 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
 
     /**
      * Run periodic execution of query.
-     * @param out
-     * @param ref_time: The time for the first query execution.
      */
-    public void execContinuousSelect(PrintStream out, long ref_time) {
-        long next_execution = ref_time;
-        stop = false;
-        while(!stop) {
-            final RSPQLStarQueryExecution exec = new RSPQLStarQueryExecution(query, sdg);
-            delay(next_execution);
-            sdg.setTime(next_execution);
+    public Runnable execContinuousSelect() {
+        final Runnable r = () -> {
+            long next_execution = TimeUtil.getTime().getTime();
+            while(!stop) {
+                final RSPQLStarQueryExecution exec = new RSPQLStarQueryExecution(query, sdg);
+                delay(next_execution);
+                sdg.setTime(next_execution);
 
-            final long t0 = System.currentTimeMillis();
-            final ResultSet rs = exec.execSelect();
-            ResultSetMgr.write(out, rs, ResultSetLang.SPARQLResultSetText);
-            exec.close();
+                final long t0 = System.currentTimeMillis();
+                push(exec.execSelect());
+                exec.close();
 
-            final long execTime = System.currentTimeMillis() - t0;
-            System.out.println("Query executed in: " + execTime + " ms");
-            next_execution += query.getComputedEvery().toMillis();
-        }
+                final long execTime = System.currentTimeMillis() - t0;
+                System.out.println("Query executed in: " + execTime + " ms");
+                next_execution += query.getComputedEvery().toMillis();
+            }
+        };
+        return r;
     }
 
     public void stop(){
@@ -158,7 +153,11 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
         if(sleep > 0){
             TimeUtil.silentSleep(sleep);
         } else {
-            System.out.println("Overload! No time to execute!");
+            logger.warn("Overload! No time to execute!");
         }
+    }
+
+    public void addContinuousListener(ContinuousListener listener){
+        continuousListener.add(listener);
     }
 }

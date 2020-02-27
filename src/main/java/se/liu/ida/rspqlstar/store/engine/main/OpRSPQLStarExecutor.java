@@ -356,7 +356,6 @@ public class OpRSPQLStarExecutor extends OpExecutor {
     }
 
     protected QueryIterator execute(OpProject opProject, QueryIterator input) {
-        System.err.println(opProject.getVars());
         for(Var var : opProject.getVars()){
             encode(var);
         }

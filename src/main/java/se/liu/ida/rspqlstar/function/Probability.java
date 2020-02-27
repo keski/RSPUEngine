@@ -315,6 +315,4 @@ public class Probability {
         }
         return value;
     }
-
-
 }

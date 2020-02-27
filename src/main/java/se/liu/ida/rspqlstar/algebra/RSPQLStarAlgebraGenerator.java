@@ -59,7 +59,7 @@ public class RSPQLStarAlgebraGenerator extends AlgebraGenerator {
 
         //op = Transformer.transform(new TransformHeuristics(timePredicate), op);
         //op = Transformer.transform(new TransformFilterPlacement(), op);
-        System.err.println(op);
+        //System.err.println(op);
         return op;
     }
 

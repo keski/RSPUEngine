@@ -75,4 +75,14 @@ public class Utils {
         final Runtime runtime = Runtime.getRuntime();
         return (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024);
     }
+
+    public static byte[] stringToIntegerArray(String s) {
+        String [] str = s.split(",");
+        int size = str.length;
+        byte[] arr = new byte[size];
+        for(int i=0; i<size; i++) {
+            arr[i] = Byte.parseByte(str[i]);
+        }
+        return arr;
+    }
 }

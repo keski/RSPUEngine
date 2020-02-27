@@ -41,8 +41,8 @@ public class PerformanceEvaluation {
         String bnNs = "http://www.example.org/ecare#";
 
         // Bayes
-        BayesianNetwork.loadNetwork("http://example.org/bn/medical-small", bnNs, root + "data/performance-eval/medical-small.xdsl");
-        BayesianNetwork.loadNetwork("http://example.org/bn/medical-large", bnNs, root + "data/performance-eval/medical-large.xdsl", Network.BayesianAlgorithmType.HENRION);
+        //BayesianNetwork.loadNetwork("http://example.org/bn/medical-small", bnNs, root + "data/performance-eval/medical-small.xdsl");
+        //BayesianNetwork.loadNetwork("http://example.org/bn/medical-large", bnNs, root + "data/performance-eval/medical-large.xdsl", Network.BayesianAlgorithmType.HENRION);
         FunctionRegistry.get().put(rspuNs + "belief", BayesianNetwork.belief);
         FunctionRegistry.get().put(rspuNs + "map", BayesianNetwork.map);
         //x100g
@@ -134,7 +134,7 @@ public class PerformanceEvaluation {
         System.out.println("# Running " + unc_type + " with stream rate " + rate + " event/s");
 
         ps.println(unc_type + " with stream rate " + rate + " event/s");
-        qexec.execContinuousSelect(ps, ref_time);
+        qexec.execContinuousSelect();//, ref_time);
         ps.flush();
         ps.close();
     }

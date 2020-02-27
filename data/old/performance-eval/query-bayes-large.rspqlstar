@@ -5,29 +5,29 @@
 # sampling this can be managed up to
 
 BASE <http://base/>
-PREFIX : <http://www.example.org/ontology#>
+PREFIX ecare: <http://www.example.org/ecare#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 PREFIX sosa: <http://www.w3.org/ns/sosa/>
 PREFIX rspu: <http://w3id.org/rsp/rspu#>
-PREFIX rspu-fn: <http://w3id.org/rsp/rspu/fn#>
 PREFIX bn-ns: <http://w3id.org/rsp/rspu/bn#>
 
 REGISTER STREAM <bayes> COMPUTED EVERY PT1S AS
 
-SELECT (COUNT(?event) AS ?count) #?event ?hr ?state ?degree1 ?degree2 ?unc
+SELECT (COUNT(?event) AS ?count)
+#?event ?hr ?state ?degree1 ?degree2 ?unc
 FROM NAMED WINDOW <w> ON <http://ecareathome/stream/heartrate> [RANGE PT1S STEP PT1S]
 WHERE {
    WINDOW <w> {
       GRAPH ?g {
-          ?event a :HeartRate .
+          ?event a ecare:HeartRateEvent .
           ?event sosa:hasSimpleResult ?hr .
           << ?event a ?node >> rspu:hasState ?state .
-          << ?event a :HighHeartRateEvent >> rspu:degree ?degree1 .
-          << ?event a :VeryHighHeartRateEvent >> rspu:degree ?degree2 .
+          << ?event a ecare:HighHeartRateEvent >> rspu:degreeOfTruth ?degree1 .
+          << ?event a ecare:VeryHighHeartRateEvent >> rspu:degreeOfTruth ?degree2 .
 
           # Bayes
-          BIND(URI(CONCAT("http://www.example.org/ontology#x", STR(xsd:integer(ROUND(RAND()*9)) * 2 + 2), "mmol_l")) AS ?obs)
-          BIND(rspu-fn:map(<http://example.org/bn/medical-large>, :bg_10, :bg_20    , ?obs) AS ?unc)
+          BIND(URI(CONCAT("http://www.example.org/ecare#x", STR(xsd:integer(ROUND(RAND()*9)) * 2 + 2), "mmol_l")) AS ?obs)
+          BIND(rspu:map(<http://example.org/bn/medical-large>, ecare:bg_10, ecare:bg_20, ?obs) AS ?unc)
       }
    }
 }

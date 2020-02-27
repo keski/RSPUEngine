@@ -15,6 +15,10 @@ public class TimeUtil {
         df.setTimeZone(TimeZone.getTimeZone("UTC"));
     }
 
+    public static long getLongTime(){
+        return new Date().getTime() - offset;
+    }
+
     public static Date getTime(){
         final Date date;
         if(offset == 0){

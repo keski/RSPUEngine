@@ -1,18 +1,11 @@
-package development;
+package extendop;
 
-import org.apache.jena.query.ARQ ;
 import org.apache.jena.sparql.expr.E_Add;
 import org.apache.jena.sparql.expr.Expr;
-import org.apache.jena.sparql.expr.ExprFunction2;
 import org.apache.jena.sparql.expr.NodeValue;
 import org.apache.jena.sparql.expr.nodevalue.NodeValueOps ;
-import org.apache.jena.sparql.expr.nodevalue.XSDFuncOp ;
 import org.apache.jena.sparql.sse.Tags ;
-import se.liu.ida.rspqlstar.datatypes.ProbabilityDistribution;
 import se.liu.ida.rspqlstar.function.Probability;
-
-import javax.xml.datatype.XMLGregorianCalendar;
-import java.util.Date;
 
 public class E_AddDynamic extends E_Add
 {

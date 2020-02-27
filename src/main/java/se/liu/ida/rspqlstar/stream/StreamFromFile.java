@@ -15,7 +15,10 @@ import java.nio.file.Files;
 import java.util.Iterator;
 import java.util.stream.Stream;
 
-public class StreamFromFile extends RSPQLStarStream {
+public class StreamFromFile implements Runnable {
+    private RDFStarStream stream;
+    private final String BASE = "http://base/";
+    private boolean stop = false;
     private String fileName;
     private String prefixes;
     private long initialDelay;
@@ -23,12 +26,12 @@ public class StreamFromFile extends RSPQLStarStream {
     /**
      * Produce a new stream from file. Each line is considered an element and a total delay
      * is produced between streamed elements.
-     * @param rdfStream
+     * @param stream
      * @param fileName
      * @param initialDelay
      */
-    public StreamFromFile(RDFStarStream rdfStream, String fileName, long initialDelay) {
-        super(rdfStream);
+    public StreamFromFile(RDFStarStream stream, String fileName, long initialDelay) {
+        this.stream = stream;
         this.fileName = fileName;
         this.initialDelay = initialDelay;
     }
@@ -67,11 +70,8 @@ public class StreamFromFile extends RSPQLStarStream {
                     // sleep until tg.time
                     long sleep = tg.time - TimeUtil.getTime().getTime();
                     if(sleep > 0){
-                        //System.out.println(tg.time + " <- TG time");
-                        //System.out.println("Stream waiting: " + sleep + " ms");
                         TimeUtil.silentSleep(sleep);
                     }
-                    //System.out.println("TG time:      " + tg.time);
                     push(tg);
                 }
             }
@@ -80,7 +80,25 @@ public class StreamFromFile extends RSPQLStarStream {
         }
     }
 
+    /**
+     * Start streaming from file.
+     */
     public void start(){
         new Thread(this).start();
+    }
+
+    /**
+     * Stop the stream.
+     */
+    public void stop(){
+        this.stop = true;
+    }
+
+    public void push(RDFStarStreamElement tg) {
+        stream.push(tg);
+    }
+
+    public RDFStarStream getStream(){
+        return stream;
     }
 }

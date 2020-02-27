@@ -5,14 +5,15 @@ PREFIX ecare: <http://www.example.org/ecare#>
 PREFIX sosa: <http://www.w3.org/ns/sosa/>
 PREFIX rspu: <http://w3id.org/rsp/rspu#>
 
-REGISTER STREAM <abnormal/farida> COMPUTED EVERY PT1S AS
+REGISTER STREAM <abnormal/farida> COMPUTED EVERY PT5S AS
 
-SELECT (MAX(?degree) AS ?maxDegree)
-FROM NAMED WINDOW <w1> ON <http://ecareathome/stream/activity> [RANGE PT15S STEP PT1S]
-FROM NAMED WINDOW <w2> ON <http://ecareathome/stream/heartrate> [RANGE PT5S STEP PT1S]
-FROM NAMED WINDOW <w3> ON <http://ecareathome/stream/breathing> [RANGE PT5S STEP PT1S]
-FROM NAMED WINDOW <w4> ON <http://ecareathome/stream/oxygen> [RANGE PT5S STEP PT1S]
-FROM NAMED WINDOW <w5> ON <http://ecareathome/stream/temperature> [RANGE PT5S STEP PT1S]
+SELECT (MAX(?prob) AS ?maxProb)
+#?person ?activity ?hr ?hrUpper ?br ?brUpper ?ox ?oxLower ?temp ?tempUpper
+FROM NAMED WINDOW <w1> ON <http://ecareathome/stream/activity> [RANGE PT5S STEP PT5S]
+FROM NAMED WINDOW <w2> ON <http://ecareathome/stream/heartrate> [RANGE PT5S STEP PT5S]
+FROM NAMED WINDOW <w3> ON <http://ecareathome/stream/breathing> [RANGE PT5S STEP PT5S]
+FROM NAMED WINDOW <w4> ON <http://ecareathome/stream/oxygen> [RANGE PT5S STEP PT5S]
+FROM NAMED WINDOW <w5> ON <http://ecareathome/stream/temperature> [RANGE PT5S STEP PT5S]
 WHERE {
     [] a ecare:Context ;
        ecare:forPerson ?person ;
@@ -28,68 +29,53 @@ WHERE {
                 sosa:observedProperty <person1/Activity> ;
                 sosa:featureOfInterest ?person ;
                 sosa:hasSimpleResult ?activity .
-            << ?e1 a ecare:Activity >> rspu:hasState ?activityState .
         }
     }
-    WINDOW <w1> {
-        GRAPH ?g1 {
-            ?e1 a ecare:ActivityEvent ;
-                sosa:observedProperty <person1/Activity> ;
-                sosa:featureOfInterest ?person ;
-                sosa:hasSimpleResult ?activity .
-        }
-    }
+
     WINDOW <w2> {
         GRAPH ?g2 {
             ?e2 a ecare:HeartRateEvent ;
                 sosa:observedProperty <person1/HeartRate> ;
                 sosa:featureOfInterest ?person .
-            << ?e2 a ecare:HighHeartRateEvent >> rspu:degreeOfTruth ?hrHighDegree .
-            << ?e2 a ecare:VeryHighHeartRateEvent >> rspu:degreeOfTruth ?hrVeryHighDegree .
+            << ?e2 sosa:hasSimpleResult ?hr >> rspu:error ?hrError .
         }
     }
-    FILTER(?hrHighDegree > 0 || ?hrVeryHighDegree > 0)
+    BIND(rspu:greaterThan(rspu:add(?hrError, ?hr), ?hrUpper) AS ?hrUnc)
+    FILTER(?hrUnc > 0)
 
     WINDOW <w3> {
         GRAPH ?g3 {
             ?e3 a ecare:BreathingRateEvent ;
                 sosa:observedProperty <person1/BreathingRate> ;
                 sosa:featureOfInterest ?person .
-            << ?e3 a ecare:ElevatedBreathingRateEvent >> rspu:degreeOfTruth ?brHighDegree .
+            << ?e3 sosa:hasSimpleResult ?br >> rspu:error ?brError .
         }
     }
-    FILTER(?brHighDegree > 0)
+    BIND(rspu:greaterThan(rspu:add(?brError, ?br), ?brUpper) AS ?brUnc)
+    FILTER(?brUnc > 0)
 
     WINDOW <w4> {
         GRAPH ?g4 {
             ?e4 a ecare:OxygenSaturationEvent ;
                 sosa:observedProperty <person1/OxygenSaturation> ;
                 sosa:featureOfInterest ?person .
-            << ?e4 a ecare:LowOxygenSaturationEvent >> rspu:degreeOfTruth ?oxLowDegree .
+            << ?e4 sosa:hasSimpleResult ?ox >> rspu:error ?oxError .
         }
     }
-    FILTER(?oxLowDegree > 0)
+    BIND(rspu:lessThan(rspu:add(?oxError, ?ox), ?oxUpper) AS ?oxUnc)
+    FILTER(?oxUnc > 0)
 
     WINDOW <w5> {
         GRAPH ?g5 {
             ?e5 a ecare:TemperatureEvent ;
                 sosa:observedProperty <person1/Temperature> ;
                 sosa:featureOfInterest ?person .
-            << ?e5 a ecare:Temperature >> rspu:hasState ?tempState.
-            << ?e5 a ecare:HighTemperatureEvent >> rspu:degreeOfTruth ?tempHighDegree .
+            << ?e5 sosa:hasSimpleResult ?temp >> rspu:error ?tempError .
         }
     }
-    FILTER(?tempHighDegree > 0)
+    BIND(rspu:greaterThan(rspu:add(?tempError, ?temp), ?tempUpper) AS ?tempUnc)
+    FILTER(?tempUnc > 0)
 
-    BIND(rspu:zadehConjunction(
-            rspu:zadehConjunction(
-                rspu:zadehConjunction(
-                    rspu:zadehDisjunction(?hrHighDegree, ?hrVeryHighDegree),
-                    ?brHighDegree
-                ),
-                ?oxLowDegree
-            ),
-            ?tempHighDegree
-        ) AS ?degree)
+    BIND(?hrUnc * ?brUnc * ?oxUnc * ?tempUnc AS ?prob)
 }
 HAVING(?maxDegree > 0)

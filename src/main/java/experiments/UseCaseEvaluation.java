@@ -45,7 +45,7 @@ public class UseCaseEvaluation {
         String bnNs = "http://www.example.org/ecare#";
 
         // Bayes
-        BayesianNetwork.loadNetwork("http://example.org/bn/farida", bnNs, root + "/data/use-case/farida.xdsl");
+        //BayesianNetwork.loadNetwork("http://example.org/bn/farida", bnNs, root + "/data/use-case/farida.xdsl");
         FunctionRegistry.get().put(rspuNs + "belief", BayesianNetwork.belief);
         FunctionRegistry.get().put(rspuNs + "map", BayesianNetwork.map);
         FunctionRegistry.get().put(rspuNs + "mle", BayesianNetwork.mle);
@@ -159,7 +159,7 @@ public class UseCaseEvaluation {
         //ps = System.out;
 
         ps.println(type + " with stream rate 1 event/s");
-        qexec.execContinuousSelect(ps, ref_time);
+        qexec.execContinuousSelect();//), ref_time);
         ps.flush();
         ps.close();
     }
