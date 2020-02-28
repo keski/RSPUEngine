@@ -51,7 +51,7 @@ public class TransformFlatten extends TransformCopy {
         } else if(op instanceof OpTable){
             return opSequence;
         } else {
-            System.err.println("add op: " + op.getClass());
+            //System.err.println("add op: " + op.getClass());
             opSequence.add(op);
         }
         return opSequence;

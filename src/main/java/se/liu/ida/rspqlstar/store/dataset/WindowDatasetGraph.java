@@ -35,10 +35,10 @@ public class WindowDatasetGraph extends DatasetGraphStar {
         final long upperBound = getUpperBound(time);
         // use cached dataset
         if(cachedUpperBound == upperBound) {
-            logger.debug("Using cached dataset for window: " + name);
+            //logger.debug("Using cached dataset for window: " + name);
             return cachedDatasetGraph;
         }
-        logger.debug("Not using cached dataset for window: " + name);
+        //logger.debug("Not using cached dataset for window: " + name);
 
         final DatasetGraphStar ds = new DatasetGraphStar();
         rdfStream.iterator(upperBound - width, upperBound).forEachRemaining(ds::addToIndex);

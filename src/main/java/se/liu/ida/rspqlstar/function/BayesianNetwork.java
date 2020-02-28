@@ -82,7 +82,7 @@ public class BayesianNetwork {
         @Override
         public NodeValue exec(List<NodeValue> params) {
             final Network bn = bnMap.get(params.get(0).getNode().getURI());
-            int targetNodeId = 0; //bn.getNode(encode(params.get(1), nsMap.get(bn)));
+            int targetNodeId = 0;
             final List<NodeValue> evidence = params.subList(2, params.size());
             final HashMap<NodeValue, Double> outcomes = getOutcomes(bn, targetNodeId, evidence);
 
@@ -181,11 +181,11 @@ public class BayesianNetwork {
         for(Pair pair : evidence) {
             net.getNode(pair.id);
             if (0 < pair.value && pair.value < 1) {
-                logger.debug("Setting virtual evidence: Pr(" + pair.id + ") = " + pair.value);
+                //logger.debug("Setting virtual evidence: Pr(" + pair.id + ") = " + pair.value);
                 net.setVirtualEvidence(pair.id, new double[]{pair.value, 1 - pair.value});
             } else {
                 final String outcome = pair.value == 1 ? "T" : "F";
-                logger.debug("Setting hard evidence: Pr(" + pair.id + ") = " + outcome);
+                //logger.debug("Setting hard evidence: Pr(" + pair.id + ") = " + outcome);
                 net.setEvidence(pair.id, outcome);
             }
         }
