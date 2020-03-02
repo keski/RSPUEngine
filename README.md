@@ -143,4 +143,5 @@ and iterator with bindings in `DecodeBindingsIterator`.
 
 # Known limitations
 - Scope of variables in subqueries is not respected.
-- Query result star does not work for subqueries.
+- Query result star (*) does not work for subqueries.
+- No support for parallel queries over the same dataset graph
