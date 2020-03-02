@@ -1,7 +1,0 @@
-@base <http://base/> .
-@prefix ecare: <http://www.example.org/ecare#> .
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-@prefix rspu: <http://w3id.org/rsp/rspu#> .
-@prefix sosa: <http://www.w3.org/ns/sosa/> .
-@prefix prov: <http://www.w3.org/ns/prov#> .

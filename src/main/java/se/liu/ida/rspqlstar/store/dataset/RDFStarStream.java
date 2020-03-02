@@ -29,6 +29,14 @@ public class RDFStarStream {
         listeners.add(listener);
     }
 
+    public void removeListener(ContinuousListener listener){
+        listeners.remove(listener);
+    }
+
+    public void clearListeners(){
+        listeners.clear();
+    }
+
     public Iterator<IdBasedQuad> iterator(long lowerBound, long upperBound){
         final IteratorChain<IdBasedQuad> iteratorChain = new IteratorChain<>();
         for(int i=0; i < timestampedGraphs.size(); i++){

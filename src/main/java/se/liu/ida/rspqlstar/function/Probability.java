@@ -10,15 +10,30 @@ import org.apache.jena.sparql.expr.nodevalue.NodeValueNode;
 import org.apache.jena.sparql.function.FunctionBase2;
 import org.apache.jena.sparql.function.FunctionBase3;
 import org.apache.jena.sparql.function.FunctionFactory;
+import org.apache.jena.sparql.function.FunctionRegistry;
 import org.apache.jena.sparql.function.library.Math_pow;
 import org.apache.jena.sparql.function.library.leviathan.degreesToRadians;
 import se.liu.ida.rspqlstar.datatypes.ProbabilityDistribution;
+import se.liu.ida.rspqlstar.util.Utils;
 
 import javax.swing.*;
 import javax.xml.soap.Node;
+import java.io.File;
 
 public class Probability {
     private static final double MIN_VALUE = 0.0000001; // Double.MIN_VALUE?
+    public static final String ns = "http://w3id.org/rsp/rspu#";
+
+    public static void init(){
+        // Probability distribution
+        FunctionRegistry.get().put(ns + "lt", Probability.lessThan);
+        FunctionRegistry.get().put(ns + "lte", Probability.lessThanOrEqual);
+        FunctionRegistry.get().put(ns + "gt", Probability.greaterThan);
+        FunctionRegistry.get().put(ns + "gte", Probability.greaterThanOrEqual);
+        FunctionRegistry.get().put(ns + "between", Probability.between);
+        FunctionRegistry.get().put(ns + "add", Probability.add);
+        FunctionRegistry.get().put(ns + "subtract", Probability.subtract);
+    }
 
     public static FunctionFactory lessThan = s -> new FunctionBase2() { // less than or equal
         @Override

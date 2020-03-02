@@ -3,6 +3,9 @@ package generator;
 import org.apache.commons.math3.distribution.BinomialDistribution;
 import org.apache.commons.math3.distribution.NormalDistribution;
 import org.apache.commons.math3.distribution.UniformRealDistribution;
+import org.apache.commons.math3.random.RandomDataGenerator;
+import org.apache.commons.math3.random.RandomGenerator;
+import org.apache.commons.math3.special.Erf;
 import se.liu.ida.rspqlstar.function.BayesianNetwork;
 import smile.Network;
 
@@ -19,23 +22,30 @@ public class Generator {
     public static final int brThreshold = 30;
     public static final int oxThreshold = 90;
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
+        System.err.println(pToZ(0.000));
+    }
+
+    public static void main2(String[] args) throws IOException {
         BayesianNetwork.init();
         final String root = new File("").getAbsolutePath() + "/";
         final Network net = BayesianNetwork.loadNetwork("", root + "data/experiments/heart-attack.bn");
         net.updateBeliefs();
 
         // Generate 3 minutes for each config
-        final int duration = 50;
+        final int duration = 60;
         int[] streamRateList = new int[]{1};
-        double[] occUncList = new double[]{1,0.99,0.95, 0.9, 0.8, 0.7, 0.6, 0.5};
-        double[] attrUncList = new double[]{0, 1, 2, 3};
+        // 1 = likelihood evidence is same as hard
+        // .5 = likelihood evidence is equivalent to random
+        double[] occUncList = new double[]{1.0, .95, .90, .85, .80, .75, .70, .65, .60, .55, .50};
+        // percentiles. The probability that the value is not within the threshold
+        float[] attrUncList = new float[]{.0001f, .1f};
 
         // occurrence uncertainty
         for(int streamRate : streamRateList){
             for(double occUnc : occUncList) {
                 for (double attrUnc : attrUncList) {
-                    generate(occUnc, attrUnc, streamRate, duration, net);
+                    generate(occUnc, pToZ(attrUnc), streamRate, duration, net);
                 }
             }
         }
@@ -44,7 +54,7 @@ public class Generator {
     /**
      *
      * @param occUnc The likelihood ratio of a generated event reflecting the true observation in [0,0.5].
-     * @param attrUnc Standard deviation above/below thresholds
+     * @param attrUnc The proportion that is within the threshold value
      * @param streamRate The number of HeartAttackEvents generated per second
      * @param duration The duration for which the stream should be generated in seconds
      * @param net
@@ -56,10 +66,11 @@ public class Generator {
 
         // Uniform distributions for HR, BR and OX
         final double haProb = net.getNodeValue("HeartAttackEvent")[0];
+
         final BinomialDistribution p = new BinomialDistribution(1, haProb);
 
-        final double stddev_ratio = 0.01;
-        final double hrShift = attrUnc * hrThreshold * stddev_ratio; // stddev is 1 %
+        final double stddev_ratio = 0.01; // stddev is 1
+        final double hrShift = attrUnc * hrThreshold * stddev_ratio;
         final double brShift = attrUnc * brThreshold * stddev_ratio;
         final double oxShift = attrUnc * oxThreshold * stddev_ratio;
 
@@ -141,5 +152,10 @@ public class Generator {
         hrFileWriter.close();
         brFileWriter.close();
         oxFileWriter.close();
+    }
+
+    public static double pToZ(double p) {
+        double z = Math.sqrt(2) * Erf.erfcInv(2*p);
+        return z;
     }
 }

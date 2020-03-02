@@ -3,7 +3,8 @@ package se.liu.ida.rspqlstar.store.engine;
 import org.apache.jena.query.ARQ;
 import org.apache.jena.query.QueryFactory;
 import org.apache.log4j.Logger;
-import se.liu.ida.rspqlstar.function.RSPUFunctions;
+import se.liu.ida.rspqlstar.function.BayesianNetwork;
+import se.liu.ida.rspqlstar.function.Probability;
 import se.liu.ida.rspqlstar.lang.RSPQLStar;
 import se.liu.ida.rspqlstar.query.RSPQLStarQuery;
 import se.liu.ida.rspqlstar.store.dataset.RDFStarStream;
@@ -11,9 +12,7 @@ import se.liu.ida.rspqlstar.store.dataset.StreamingDatasetGraph;
 import se.liu.ida.rspqlstar.stream.StreamFromFile;
 import se.liu.ida.rspqlstar.util.TimeUtil;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -21,8 +20,19 @@ public class RSPQLStarEngineManager {
     private static final Logger logger = Logger.getLogger(RSPQLStarEngineManager.class);
     private Map<String, RSPQLStarQueryExecution> queries = new HashMap<>();
     private Map<String, RDFStarStream> streams = new HashMap<>();
-    final StreamingDatasetGraph sdg = new StreamingDatasetGraph();
+    private StreamingDatasetGraph sdg;
     final ExecutorService executor;
+    final List<StreamFromFile> streamsFromFiles = new ArrayList<>();
+
+    /**
+     * Init RSPUStarEngine
+     */
+    public static void init(){
+        RSPQLStarEngine.register();
+        ARQ.init();
+        Probability.init();
+        BayesianNetwork.init();
+    }
 
     /**
      * Create a new RSPUEngine manager
@@ -31,9 +41,11 @@ public class RSPQLStarEngineManager {
     public RSPQLStarEngineManager(long applicationTime){
         RSPQLStarEngine.register();
         ARQ.init();
-        RSPUFunctions.register();
+        Probability.init();
+        Probability.init();
         executor = Executors.newFixedThreadPool(8);
         setApplicationTime(applicationTime);
+        sdg = new StreamingDatasetGraph();
     }
 
     /**
@@ -75,17 +87,17 @@ public class RSPQLStarEngineManager {
             // create output stream
             //final RDFStarStream stream = registerStream(outputStream);
             //qexec.addContinuousListener(new ConstructStream(stream));
-
             executor.submit(qexec.execContinuousConstruct());
         }
         return qexec;
     }
 
-    /**
-     * Stop and unregister an RSPQLStar query
-     */
-    public void unregisterQuery(){
-        throw new IllegalStateException("Unregistering not yet supported");
+    public void stop(){
+        streams.values().iterator().forEachRemaining(RDFStarStream::clearListeners);
+        queries.values().iterator().forEachRemaining(RSPQLStarQueryExecution::stop);
+        streamsFromFiles.iterator().forEachRemaining(StreamFromFile::stop);
+        TimeUtil.silentSleep(2000);
+        executor.shutdown();
     }
 
     /**
@@ -101,7 +113,6 @@ public class RSPQLStarEngineManager {
         final RDFStarStream stream = new RDFStarStream(streamUri);
         streams.put(streamUri, stream);
         sdg.registerStream(stream);
-
         return stream;
     }
 
@@ -122,5 +133,6 @@ public class RSPQLStarEngineManager {
         final RDFStarStream stream = registerStream(streamUri);
         final StreamFromFile fileStream = new StreamFromFile(stream, filePath, 0);
         executor.submit(fileStream);
+        streamsFromFiles.add(fileStream);
     }
 }
