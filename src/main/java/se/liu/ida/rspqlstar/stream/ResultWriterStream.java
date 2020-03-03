@@ -77,6 +77,7 @@ public class ResultWriterStream implements ContinuousListener {
                 }
             }
             ps.println();
+            //logger.debug(qs);
         }
     }
 

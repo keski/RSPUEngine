@@ -2,6 +2,7 @@ package generator;
 
 import org.apache.commons.math3.distribution.BinomialDistribution;
 import org.apache.commons.math3.special.Erf;
+import org.apache.log4j.Logger;
 import se.liu.ida.rspqlstar.function.BayesianNetwork;
 import smile.Network;
 
@@ -15,6 +16,7 @@ public class Generator {
     public static final int hrThreshold = 100;
     public static final int brThreshold = 30;
     public static final int oxThreshold = 90;
+    private static final Logger logger = Logger.getLogger(Generator.class);
 
     public static void main(String[] args) throws IOException {
         BayesianNetwork.init();
@@ -23,18 +25,22 @@ public class Generator {
         net.updateBeliefs();
 
         // Generate 2 minutes for each config
-        final int duration = 60;
+        final int duration = 30;
         final int[] rates = new int[]{1000};
         // Likelihood (i.e., probability) that uncertain evidence is NOT correct
-        final double[] occUncList = new double[]{.001, .01, .05, .10, .15, .20, .25, .30, .35, .40, .45, .50};
+        final double[] occUncList = new double[]{.001, .05, .10, .15, .20, .25, .30, .35, .40, .45, .50};
         // The probability (p-value) that the value is NOT within the query threshold
-        final double[] attrUncList = new double[]{.001, .01, .05, .10, .15, .20, .25, .30, .35, .40, .45, .50};
+        final double[] attrUncList = new double[]{.001, .05, .10, .15, .20, .25, .30, .35, .40, .45, .50};
 
+        final int total = rates.length * (occUncList.length + attrUncList.length);
+        int progress = 0;
         for(int rate : rates){
             for(double occUnc : occUncList) {
+                logger.info("Generating: " + progress++ + " of " + total);
                 generate(occUnc, 0, rate, duration, net);
             }
             for (double attrUnc : attrUncList) {
+                logger.info("Generating: " + progress++ + " of " + total);
                 generate(0, attrUnc, rate, duration, net);
             }
         }
@@ -60,9 +66,9 @@ public class Generator {
 
         final double percentage = 0.01; // standard deviation is defined as 1% of threshold value
         final double z = attrUnc == 0 ? 0 : pToZ(attrUnc);
-        final double hrShift = z * hrThreshold * percentage;
-        final double brShift = z * brThreshold * percentage;
-        final double oxShift = z * oxThreshold * percentage;
+        final double hrShift = -z * hrThreshold * percentage;
+        final double brShift = -z * brThreshold * percentage;
+        final double oxShift = -z * oxThreshold * percentage;
 
         // Create file writers. File format is: "occUnc-attrUnc-streamRate-eventType.trigs"
         final String base = String.format("data/experiments/streams/%.3f-%.3f-%s-", occUnc, attrUnc, rate);
@@ -104,7 +110,7 @@ public class Generator {
                 final int oxOcc = new BinomialDistribution(1, oxProb).sample();
 
                 // Create heart attack event (if sample = 1 then the event occurred)
-                final long t = time + j;
+                final long t = time + j/2;
                 final String foi = "person" + idCounter;
                 final HeartAttackEvent ha = new HeartAttackEvent(
                         haOcc, // here crisp, not the prior haProb
@@ -115,18 +121,16 @@ public class Generator {
                         brThreshold + (brOcc == 0 ? 1 : -1) * brShift,
                         oxThreshold - (oxOcc == 0 ? 1 : -1) * oxShift);
 
-                // Create SDE events
-
                 // Derived event types are associated with a probability
                 // Note: occUnc is simply the degree to which the virtual node reflects the state of its parent.
                 final Event hr = new HighHeartRateEvent(ha,
-                        hrOcc == 1 ? occUnc : 1 - occUnc,
+                        hrOcc == 1 ? 1 - occUnc : occUnc,
                         hrThreshold * percentage);
                 final Event br = new HighBreathingRateEvent(ha,
-                        brOcc == 1 ? occUnc : 1 - occUnc,
+                        brOcc == 1 ? 1 - occUnc : occUnc,
                         brThreshold * percentage);
                 final Event ox = new LowOxygenSaturationEvent(ha,
-                        oxOcc == 1 ? occUnc : 1 - occUnc,
+                        oxOcc == 1 ? 1 - occUnc : occUnc,
                         oxThreshold * percentage);
                 haFileWriter.write(ha.toString().replaceAll("\\s+", " ") + "\n");
                 hrFileWriter.write(hr.toString().replaceAll("\\s+", " ") + "\n");

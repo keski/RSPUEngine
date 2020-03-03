@@ -42,7 +42,6 @@ public class StreamFromFile implements Runnable {
     @Override
     public void run() {
         final File file = new File(fileName);
-        logger.info("Starting stream from file: " + fileName);
         TimeUtil.silentSleep(initialDelay);
         try (Stream linesStream = Files.lines(file.toPath())) {
             final Iterator<String> linesIter = linesStream.iterator();

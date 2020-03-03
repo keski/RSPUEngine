@@ -24,48 +24,67 @@ public class Exp1 {
         RSPQLStarEngineManager.init();
         BayesianNetwork.loadNetwork("http://ecare/bn#heart-attack", root + "data/experiments/heart-attack.bn");
 
-        final String resultFile = root + "data/experiments/results/correctness.csv";
-        final ResultWriterStream listener = new ResultWriterStream(new PrintStream(new File (resultFile)));
+        final String occFile = root + "data/experiments/results/correctness-occ.csv";
+        final ResultWriterStream listenerOcc = new ResultWriterStream(new PrintStream(new File (occFile)));
+
+        final String attrFile = root + "data/experiments/results/correctness-attr.csv";
+        final ResultWriterStream listenerAttr = new ResultWriterStream(new PrintStream(new File (attrFile)));
+
+        final String occAttrFile = root + "data/experiments/results/correctness-both.csv";
+        final ResultWriterStream listenerOccAttr = new ResultWriterStream(new PrintStream(new File (occAttrFile)));
         //final ResultWriterStream listener = new ResultWriterStream(System.out);
 
         // Params
         final int[] rates = new int[]{1000};
-        final double[] occUncList = new double[]{.001, .01, .05, .1, .15, .2, .25, .3, .35, .4, .45, .5};
-        final double[] attrUncList = new double[]{.001, .01, .05, .1, .15, .2, .25, .3, .35, .4, .45, .5};
-        final double[] thresholds = new double[]{ 0, .001, .05, .1, .15, .2, .25, .3, .35, .4, .45, .5, .55, .6, .65, .7, .75, .8, .85, .9, .95, .99, .999};
+        final double[] occUncList = new double[]{.001, .10, .25, .50};//, .2, .25, .3, .35, .4, .45, .5};
+        final double[] attrUncList = new double[]{.001, .10, .25, .50};//, .2, .25, .3, .35, .4, .45, .5};
+        final double[] thresholds = new double[]{ 0, .001, .05, .1, .15, .2, .25, .3, .35, .4, .45, .5, .55, .6, .65, .7, .75, .8, .85, .9, .95, .999, 1};
         final int total = (occUncList.length + attrUncList.length*2) * thresholds.length;
 
         int progress = 0;
+        final int duration = 3000;
+        final int skip = 1;
+        final long pause = 1000;
         for (int rate : rates) {
             for (double occUnc : occUncList) {
                 for (double threshold : thresholds) {
-                    logger.info(String.format("Progress: %s/%s", progress, total));
+                    logger.info(String.format("Progress: %s of %s", progress, total));
+                    float timeRemaining = (total-progress) * (pause + duration)/60000;
+                    logger.info(String.format("Time remaining: ~%s minutes", timeRemaining));
                     progress++;
-                    listener.setSkip(0);
-                    correctness("occurrence", occUnc, 0, threshold, rate, listener, 2000);
-                    TimeUtil.silentSleep(100);
+                    listenerOcc.setSkip(skip);
+                    correctness("occurrence", occUnc, 0, threshold, rate, listenerOcc, duration);
+                    TimeUtil.silentSleep(pause);
+                }
+            }
+            if(true) continue;
+            for (double attrUnc : attrUncList) {
+                for (double threshold : thresholds) {
+                    logger.info(String.format("Progress: %s of %s", progress, total));
+                    long timeRemaining = (total-progress) * (pause + duration)/60000;
+                    logger.info(String.format("Time remaining: ~%s minutes", timeRemaining));
+                    progress++;
+                    listenerAttr.setSkip(skip);
+                    correctness("attribute", 0, attrUnc, threshold, rate, listenerAttr, duration);
+                    TimeUtil.silentSleep(pause);
                 }
             }
             for (double attrUnc : attrUncList) {
+                if(true) continue;
                 for (double threshold : thresholds) {
                     logger.info(String.format("Progress: %s/%s", progress, total));
+                    long timeRemaining = (total-progress) * (pause + duration)/60000;
+                    logger.info(String.format("Time remaining: ~%s minutes", timeRemaining));
                     progress++;
-                    listener.setSkip(0);
-                    correctness("attribute", 0, attrUnc, threshold, rate, listener, 2000);
-                    TimeUtil.silentSleep(100);
-                }
-            }
-            for (double attrUnc : attrUncList) {
-                for (double threshold : thresholds) {
-                    logger.info(String.format("Progress: %s/%s", progress, total));
-                    progress++;
-                    listener.setSkip(0);
-                    correctness("occurrence-attribute", 0, attrUnc, threshold, rate, listener, 2000);
-                    TimeUtil.silentSleep(100);
+                    listenerOccAttr.setSkip(skip);
+                    correctness("occurrence-attribute", 0, attrUnc, threshold, rate, listenerOccAttr, duration);
+                    TimeUtil.silentSleep(pause);
                 }
             }
         }
-        listener.close();
+        listenerOcc.close();
+        listenerAttr.close();
+        listenerOccAttr.close();
     }
 
     /**
@@ -82,10 +101,10 @@ public class Exp1 {
      */
     public static void correctness(String type, double occUnc, double attrUnc, double threshold, int rate,
                                    ResultWriterStream listener, long duration){
-        logger.info(String.format("Running: %.3f-%.3f-%s", occUnc, attrUnc, rate));
+        logger.info(String.format("type: %s occ: %.3f attr: %.3f rate: %s", threshold, occUnc, attrUnc, rate));
 
         final long applicationTime = Generator.referenceTime;
-        final RSPQLStarEngineManager manager = new RSPQLStarEngineManager(applicationTime + 100);
+        final RSPQLStarEngineManager manager = new RSPQLStarEngineManager(applicationTime);
 
         final String base = String.format("data/experiments/streams/%.3f-%.3f-%s-", occUnc, attrUnc, rate);
         // Register streams
@@ -109,8 +128,8 @@ public class Exp1 {
 
         // stop after
         TimeUtil.silentSleep(duration);
-        manager.stop();
         listener.flush();
+        manager.stop();
         reset();
     }
 
