@@ -25,27 +25,42 @@ public class Exp1 {
         BayesianNetwork.loadNetwork("http://ecare/bn#heart-attack", root + "data/experiments/heart-attack.bn");
 
         final String resultFile = root + "data/experiments/results/correctness.csv";
-        //final ResultWriterStream listener = new ResultWriterStream(new PrintStream(new File (resultFile)));
-        final ResultWriterStream listener = new ResultWriterStream(System.out);
+        final ResultWriterStream listener = new ResultWriterStream(new PrintStream(new File (resultFile)));
+        //final ResultWriterStream listener = new ResultWriterStream(System.out);
 
-        final double[] occList = new double[]{.0};
-        final int[] attrList = new int[]{1};
-        final float[] thresholds = new float[]{ 0f, .5f, .9f};
-        int total = occList.length * attrList.length * thresholds.length;
+        // Params
+        final int[] rates = new int[]{1000};
+        final double[] occUncList = new double[]{.001, .01, .05, .1, .15, .2, .25, .3, .35, .4, .45, .5};
+        final double[] attrUncList = new double[]{.001, .01, .05, .1, .15, .2, .25, .3, .35, .4, .45, .5};
+        final double[] thresholds = new double[]{ 0, .001, .05, .1, .15, .2, .25, .3, .35, .4, .45, .5, .55, .6, .65, .7, .75, .8, .85, .9, .95, .99, .999};
+        final int total = (occUncList.length + attrUncList.length*2) * thresholds.length;
+
         int progress = 0;
-        for(double o : occList){
-            for(int a: attrList) {
-                for (float threshold : thresholds) {
+        for (int rate : rates) {
+            for (double occUnc : occUncList) {
+                for (double threshold : thresholds) {
                     logger.info(String.format("Progress: %s/%s", progress, total));
                     progress++;
                     listener.setSkip(0);
-
-                    if(o > 0 && a > 0){
-                        logger.info("Skip combo");
-                        continue;
-                    }
-
-                    correctness(o, a, threshold, 1, listener, 5000);
+                    correctness("occurrence", occUnc, 0, threshold, rate, listener, 2000);
+                    TimeUtil.silentSleep(100);
+                }
+            }
+            for (double attrUnc : attrUncList) {
+                for (double threshold : thresholds) {
+                    logger.info(String.format("Progress: %s/%s", progress, total));
+                    progress++;
+                    listener.setSkip(0);
+                    correctness("attribute", 0, attrUnc, threshold, rate, listener, 2000);
+                    TimeUtil.silentSleep(100);
+                }
+            }
+            for (double attrUnc : attrUncList) {
+                for (double threshold : thresholds) {
+                    logger.info(String.format("Progress: %s/%s", progress, total));
+                    progress++;
+                    listener.setSkip(0);
+                    correctness("occurrence-attribute", 0, attrUnc, threshold, rate, listener, 2000);
                     TimeUtil.silentSleep(100);
                 }
             }
@@ -54,37 +69,39 @@ public class Exp1 {
     }
 
     /**
-     * Correctness test for a given uncertainty config, using the specified threshold. TP, TN, FP and FN are recorded.
-     * @param occUnc Uncertainty degree for occurrence. Expressed as likelihood ratio between virtual evidence and
-     *               the corresponding node in the BN.
-     * @param attrUnc Uncertainty degree for attributes. Expressed as number of SDEs from reference value
-     * @param threshold Confidence threshold
-     * @param rate Stream rate (events/s)
-     * @param duration Stop after this many milliseconds
+     * Correctness test for a given uncertainty config, using a specified threshold.
+     *
+     * @param type Query type: "occurrence", "attribute", or "occurrence-attribute"
+     * @param occUnc Degree of occurrence uncertainty. Expressed as the likelihood that the virtual evidence does not
+     *               correspond to the value of its parent.
+     * @param attrUnc Degree of attribute uncertainty. Expressed as number the percentile of values outside the value
+     *                thresholds.
+     * @param threshold Confidence threshold. Use to filter results.
+     * @param rate Stream rate. Expressed as number of events per second per stream.
+     * @param duration Duration of test.
      */
-    public static void correctness(double occUnc, int attrUnc, float threshold, int rate,
+    public static void correctness(String type, double occUnc, double attrUnc, double threshold, int rate,
                                    ResultWriterStream listener, long duration){
+        logger.info(String.format("Running: %.3f-%.3f-%s", occUnc, attrUnc, rate));
 
-        long applicationTime = Generator.referenceTime;
-        final RSPQLStarEngineManager manager = new RSPQLStarEngineManager(applicationTime - 100);
+        final long applicationTime = Generator.referenceTime;
+        final RSPQLStarEngineManager manager = new RSPQLStarEngineManager(applicationTime + 100);
 
-        String filePrefix = String.format(root + "data/experiments/streams/%s-%s-%s-", occUnc, attrUnc, rate);
+        final String base = String.format("data/experiments/streams/%.3f-%.3f-%s-", occUnc, attrUnc, rate);
         // Register streams
-        manager.registerStreamFromFile(filePrefix + "HA.trigs", "http://base/stream/ha");
-        manager.registerStreamFromFile(filePrefix + "HR.trigs", "http://base/stream/hr");
-        manager.registerStreamFromFile(filePrefix + "BR.trigs", "http://base/stream/br");
-        manager.registerStreamFromFile(filePrefix + "OX.trigs", "http://base/stream/ox");
+        manager.registerStreamFromFile(root + base + "HA.trigs", "http://base/stream/ha");
+        manager.registerStreamFromFile(root + base + "HR.trigs", "http://base/stream/hr");
+        manager.registerStreamFromFile(root + base + "BR.trigs", "http://base/stream/br");
+        manager.registerStreamFromFile(root + base + "OX.trigs", "http://base/stream/ox");
 
         // Register query
-        String queryFile  = root + "data/experiments/queries/query";
-        queryFile += occUnc > 0 ? "-occurrence" : "";
-        queryFile += attrUnc > 0 ? "-attribute" : "";
-        queryFile += ".rspqlstar";
-        String qString = Utils.readFile(queryFile);
-        qString = qString.replace("$THRESHOLD$", Float.toString(threshold));
-        qString = qString.replace("$OCCURRENCE$", Double.toString(occUnc));
-        qString = qString.replace("$ATTRIBUTE$", Integer.toString(attrUnc));
+        final String queryFile  = root + "data/experiments/queries/query-" + type + ".rspqlstar";
 
+        String qString = Utils.readFile(queryFile);
+        qString = qString.replace("$THRESHOLD$", Double.toString(threshold));
+        qString = qString.replace("$OCCURRENCE$", Double.toString(occUnc));
+        qString = qString.replace("$ATTRIBUTE$", Double.toString(attrUnc));
+        //logger.info(qString);
         final RSPQLStarQueryExecution q = manager.registerQuery(qString);
 
         // listen

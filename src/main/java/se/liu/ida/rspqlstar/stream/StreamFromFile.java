@@ -1,6 +1,7 @@
 package se.liu.ida.rspqlstar.stream;
 
 import org.apache.jena.riot.RDFParser;
+import org.apache.log4j.Logger;
 import se.liu.ida.rdfstar.tools.parser.lang.LangTrigStar;
 import se.liu.ida.rspqlstar.store.dataset.RDFStarStream;
 import se.liu.ida.rspqlstar.store.dataset.RDFStarStreamElement;
@@ -16,12 +17,14 @@ import java.util.Iterator;
 import java.util.stream.Stream;
 
 public class StreamFromFile implements Runnable {
+    private static Logger logger = Logger.getLogger(StreamFromFile.class);
     private RDFStarStream stream;
     private final String BASE = "http://base/";
     private boolean stop = false;
     private String fileName;
     private String prefixes;
     private long initialDelay;
+    private final String root = new File("").getAbsolutePath() + "/";
 
     /**
      * Produce a new stream from file. Each line is considered an element and a total delay
@@ -38,18 +41,8 @@ public class StreamFromFile implements Runnable {
 
     @Override
     public void run() {
-
-        final File file;
-        if(fileName.startsWith("/")) {
-            file = new File(fileName);
-        } else {
-            final URL url = getClass().getClassLoader().getResource(fileName);
-            if (url == null) {
-                throw new IllegalStateException("File not found: " + fileName);
-            }
-            file = new File(url.getFile());
-        }
-
+        final File file = new File(fileName);
+        logger.info("Starting stream from file: " + fileName);
         TimeUtil.silentSleep(initialDelay);
         try (Stream linesStream = Files.lines(file.toPath())) {
             final Iterator<String> linesIter = linesStream.iterator();

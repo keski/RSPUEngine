@@ -46,7 +46,7 @@ public class Event {
         }
         if(stddev > 0){
             event += String.format( "<< <%s> sosa:hasSimpleResult %s >> rspu:error " +
-                    "\"Normal(0,%s)\"^^rspu:distribution .\n\t", eid, value, stddev);
+                    "\"Normal(0,%s)\"^^rspu:distribution .\n\t", eid, value, Math.pow(stddev, 2));
         } else {
             event += String.format("<%s> sosa:hasSimpleResult %s .\n\t", eid, value);
         }
