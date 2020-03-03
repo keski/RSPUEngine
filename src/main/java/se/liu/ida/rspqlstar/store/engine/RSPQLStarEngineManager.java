@@ -93,10 +93,10 @@ public class RSPQLStarEngineManager {
     }
 
     public void stop(){
-        streams.values().iterator().forEachRemaining(RDFStarStream::clearListeners);
-        queries.values().iterator().forEachRemaining(RSPQLStarQueryExecution::stop);
         streamsFromFiles.iterator().forEachRemaining(StreamFromFile::stop);
+        queries.values().iterator().forEachRemaining(RSPQLStarQueryExecution::stop);
         TimeUtil.silentSleep(2000);
+        streams.values().iterator().forEachRemaining(RDFStarStream::clearListeners);
         executor.shutdown();
     }
 
