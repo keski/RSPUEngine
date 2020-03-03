@@ -66,8 +66,8 @@ public class EncodeBindingsIterator implements Iterator<SolutionMapping>, Closea
 
     private IdBasedTriple asIdBaseTriple(Triple value) {
         final long subject = nd.getId(value.getSubject());
-        final long predicate = nd.getId(value.getSubject());
-        final long object = nd.getId(value.getSubject());
+        final long predicate = nd.getId(value.getPredicate());
+        final long object = nd.getId(value.getObject());
         return new IdBasedTriple(subject, predicate, object);
     }
 
