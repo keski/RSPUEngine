@@ -1,12 +1,14 @@
 package se.liu.ida.rspqlstar.store.dictionary;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 public class IdFactory {
-    static public long REFERENCE_BIT =
+    static final public long REFERENCE_BIT =
             IdFactory.makeLong("1000000000000000000000000000000000000000000000000000000000000000");
     // Note: Although we don't use embedded nodes here, we could embed datatypes and values as in CQELS
 
-    static private long nodeId = 0;
-    static private long referenceId = 1;
+    static private AtomicInteger nodeIdCounter = new AtomicInteger();
+    static private AtomicInteger referenceIdCounter = new AtomicInteger();;
 
     /**
      * Create the next node ID for the node dictionary.
@@ -14,9 +16,7 @@ public class IdFactory {
      * @return
      */
     public static long nextNodeId() {
-        long i = nodeId;
-        nodeId++;
-        return i;
+        return nodeIdCounter.incrementAndGet();
     }
 
     /**
@@ -25,7 +25,7 @@ public class IdFactory {
      * @return
      */
     public static long getNodeId() {
-        return nodeId;
+        return nodeIdCounter.get();
     }
 
     /**
@@ -34,7 +34,7 @@ public class IdFactory {
      * @return
      */
     public static long nextReferenceKeyId() {
-        return REFERENCE_BIT + referenceId++;
+        return REFERENCE_BIT + referenceIdCounter.incrementAndGet();
     }
 
     /**
@@ -68,7 +68,7 @@ public class IdFactory {
     }
 
     public static void reset(){
-        nodeId = 0;
-        referenceId = 1;
+        nodeIdCounter = new AtomicInteger();
+        referenceIdCounter = new AtomicInteger();
     }
 }
