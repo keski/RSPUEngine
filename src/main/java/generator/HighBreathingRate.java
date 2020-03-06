@@ -1,14 +1,10 @@
 package generator;
 
-public class HighBreathingRateEvent extends Event {
-    public HighBreathingRateEvent(COPDExacerbation e, double prob, double stddev){
-        this(prob, e.time, e.id, e.foi, e.br, stddev);
-    }
+public class HighBreathingRate extends Event {
 
-    public HighBreathingRateEvent(double probability, long time, int id, String foi, double value, double stddev){
-        super(probability, time, id, foi, value, stddev);
-        this.eid = "br" + id;
-        derived = "HighBreathingRateEvent";
-        sde = "BreathingRateEvent";
+    public HighBreathingRate(double prob, long time, String id, String foi, double value, double sd){
+        super(prob, time, id, foi, value, sd);
+        derived = "HighBreathingRate";
+        sde = "BreathingRate";
     }
 }

@@ -7,11 +7,11 @@ PREFIX rspu: <http://w3id.org/rsp/rspu#>
 PREFIX sosa: <http://www.w3.org/ns/sosa/>
 
 REGISTER STREAM <correctness> COMPUTED EVERY PT1S AS
-SELECT ?foi ("attr" AS ?type) ($OCCURRENCE$ AS ?occ) ($ATTRIBUTE$ AS ?attribute) ?threshold ?tn ?tp ?fp ?fn
+SELECT ?pTot ?actual ?foi ("attribute" AS ?type) ($OCCURRENCE$ AS ?occurrence) ($ATTRIBUTE$ AS ?attribute) ?threshold ?tn ?tp ?fp ?fn
 FROM NAMED WINDOW <w1> ON <stream/hr> [RANGE PT1S STEP PT1S]
 FROM NAMED WINDOW <w2> ON <stream/br> [RANGE PT1S STEP PT1S]
 FROM NAMED WINDOW <w3> ON <stream/ox> [RANGE PT1S STEP PT1S]
-FROM NAMED WINDOW <w4> ON <stream/ha> [RANGE PT1S STEP PT1S]
+FROM NAMED WINDOW <w4> ON <stream/ce> [RANGE PT1S STEP PT1S]
 WHERE {
     WINDOW <w1> {
         GRAPH ?g1 {
@@ -38,13 +38,14 @@ WHERE {
     WINDOW <w4> {
         GRAPH ?g4 {
             ?id4 sosa:featureOfInterest ?foi .
-            << ?id4 a :HeartAttackEvent >> rspu:probability ?pHA .
+            << ?id4 a :COPDExacerbation >> rspu:probability ?pCe .
         }
     }
 
     BIND($THRESHOLD$ AS ?threshold)
-    BIND(?pHr * ?pBr * ?pOx >= ?threshold AS ?predicted)
-    BIND(?pHA = 1 AS ?actual)
+    BIND(?pHr * ?pBr * ?pOx AS ?pTot)
+    BIND(?pTot >= ?threshold AS ?predicted)
+    BIND(?pCe = 1 AS ?actual)
     BIND(?predicted && ?actual AS ?tp)
     BIND(?predicted=false && ?actual=false AS ?tn)
     BIND(?predicted && ?actual=false AS ?fp)

@@ -4,35 +4,36 @@ import org.apache.jena.query.Dataset;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.RDFNode;
-import org.apache.jena.riot.ResultSetMgr;
-import org.apache.jena.riot.resultset.ResultSetLang;
 import org.apache.log4j.Logger;
 import se.liu.ida.rspqlstar.store.dataset.RDFStarStreamElement;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
-public class ResultWriterStream implements ContinuousListener {
-    private Logger logger = Logger.getLogger(ResultWriterStream.class);
+public class TimeWriterStream implements ContinuousListener {
+    private Logger logger = Logger.getLogger(TimeWriterStream.class);
     private boolean printHeader = true;
     private final PrintStream ps;
     private int skip = 0;
     private String sep = ",";
 
     /**
-     * Log output from a continuous SELECT query.
+     * Log timing information from a continuous SELECT query.
      * @param ps Print stream
      */
-    public ResultWriterStream(PrintStream ps){
+    public TimeWriterStream(PrintStream ps){
         this.ps = ps;
     }
+
     /**
-     * Log output from a continuous SELECT query.
+     * Log timing information from a continuous SELECT query.
      * @param fileName
      */
-    public ResultWriterStream(String fileName) throws FileNotFoundException {
+    public TimeWriterStream(String fileName) throws FileNotFoundException {
         this(new PrintStream(new File(fileName)));
     }
 
@@ -44,18 +45,21 @@ public class ResultWriterStream implements ContinuousListener {
         this.skip = x;
     }
 
+
     @Override
     public void push(ResultSet rs, long startedAt) {
         int counter = 0;
         if(printHeader){
             printHeader = false;
-            final Iterator<String> iter = rs.getResultVars().iterator();
-            while(iter.hasNext()){
-                ps.print(iter.next());
-                if(iter.hasNext()) {
-                    ps.print(sep);
-                }
-            }
+            ps.print("rate");
+            ps.print(sep);
+            ps.print("ratio");
+            ps.print(sep);
+            ps.print("type");
+            ps.print(sep);
+            ps.print("threshold");
+            ps.print(sep);
+            ps.print("exec_time");
             ps.println();
         }
 
@@ -66,25 +70,38 @@ public class ResultWriterStream implements ContinuousListener {
                 counter++;
             }
             skip--;
-            logger.info("Skip " + counter + " results ");
+            logger.info("Skipped " + counter + " results ");
             return;
         }
 
-        while(rs.hasNext()){
+        // collect results
+        String rate = "-1";
+        String ratio = "-1";
+        String threshold = "-1";
+        String type = "-1";
+        while(rs.hasNext()) {
             counter++;
             final QuerySolution qs = rs.next();
-            final Iterator<String> iter = rs.getResultVars().iterator();
-            while(iter.hasNext()){
-                final RDFNode n = qs.get(iter.next());
-                final String s = n.isLiteral() ? n.asLiteral().getLexicalForm(): n.toString();
-                ps.print(s);
-                if(iter.hasNext()) {
-                    ps.print(sep);
-                }
-            }
-            ps.println();
+            rate = qs.get("rate").asLiteral().getLexicalForm();
+            ratio = qs.get("ratio").asLiteral().getLexicalForm();
+            threshold = qs.get("threshold").asLiteral().getLexicalForm();
+            type = qs.get("type").asLiteral().getLexicalForm();
+            logger.debug(qs.get("max_confidence"));
         }
-        logger.debug("Wrote " + counter + " results");
+        final long executionTime = System.currentTimeMillis() - startedAt;
+
+        ps.print(rate);
+        ps.print(sep);
+        ps.print(ratio);
+        ps.print(sep);
+        ps.print(type);
+        ps.print(sep);
+        ps.print(threshold);
+        ps.print(sep);
+        ps.print(executionTime);
+        ps.println();
+        logger.debug("Executed in " + executionTime + " ms");
+        logger.debug("Found " + counter + " results");
     }
 
     @Override

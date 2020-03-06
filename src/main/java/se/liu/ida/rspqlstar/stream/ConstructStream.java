@@ -20,12 +20,12 @@ public class ConstructStream implements ContinuousListener {
     }
 
     @Override
-    public void push(ResultSet rs) {
+    public void push(ResultSet rs, long t0) {
         throw new IllegalStateException("ConstructStream supports only construct queries");
     }
 
     @Override
-    public void push(Dataset ds) {
+    public void push(Dataset ds, long startedAt) {
         ds.listNames().forEachRemaining(g -> {
             final RDFStarStreamElement tg = new RDFStarStreamElement();
             final Resource graph = ResourceFactory.createResource(g);

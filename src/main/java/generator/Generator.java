@@ -10,6 +10,7 @@ import smile.Network;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Arrays;
 
 public class Generator {
     // Use reference time for streams: 1582757970590 -> 2020-02-26T23:59
@@ -19,30 +20,26 @@ public class Generator {
     public static final int oxLimit = 90;
     private static final Logger logger = Logger.getLogger(Generator.class);
 
-    public static void main(String[] args) throws IOException {
+    public static void run(int duration, int[] rates, int[] ratios, double[] occUncList, double[] attrUncList) throws IOException {
         BayesianNetwork.init();
         final String root = new File("").getAbsolutePath() + "/";
-        final Network net = BayesianNetwork.loadNetwork("", root + "data/experiments/heart-attack.bn");
+        final Network net = BayesianNetwork.loadNetwork("", root + "data/experiments/medical-generator.bn");
         net.updateBeliefs();
 
-        // Generate 2 minutes for each config
-        final int duration = 30;      // 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000
-        final int[] rates = new int[]{100,1000}; //200,300,400,500,600,700,800,900,1000};
-        // Likelihood (i.e., probability) that uncertain evidence is NOT correct
-        final double[] occUncList = new double[]{.001, .01, .05, .10, .25};
-        // The probability (p-value) that the value is NOT within the query threshold
-        final double[] attrUncList = new double[]{.001, .01, .05, .10, .25};
-
-        final int total = rates.length * (occUncList.length + attrUncList.length);
+        final int total = rates.length * (occUncList.length + attrUncList.length) * ratios.length;
         int progress = 0;
-        for(int rate : rates){
-            for(double occUnc : occUncList) {
-                logger.info("Generating: " + progress++ + " of " + total);
-                generate(occUnc, 0, rate, duration, net);
-            }
-            for (double attrUnc : attrUncList) {
-                logger.info("Generating: " + progress++ + " of " + total);
-                generate(0, attrUnc, rate, duration, net);
+        for(int ratio : ratios){
+            for(int rate : rates) {
+                for (double occUnc : occUncList) {
+                    progress++;
+                    logger.info("Generating: " + progress + " of " + total);
+                    generate(occUnc, 0, rate, ratio, duration, net);
+                }
+                for (double attrUnc : attrUncList) {
+                    progress++;
+                    logger.info("Generating: " + progress + " of " + total);
+                    generate(0, attrUnc, rate, ratio, duration, net);
+                }
             }
         }
     }
@@ -52,18 +49,21 @@ public class Generator {
      * @param occUnc The likelihood ratio of a virtual node not reflecting its parent.
      * @param attrUnc The percentile probability that the reported value is not within the threshold value
      * @param rate The number of HeartAttackEvents generated per second
+     * @param ratio The ratio between SDE instances and CE. Note: Exponential in terms of query complexity.
      * @param duration The duration for which the stream should be generated in seconds
-     * @param net
+     * @param net Bayesian network used in generation
      * @throws IOException
      */
-    public static void generate(double occUnc, double attrUnc, int rate, int duration, Network net) throws IOException {
+    public static void generate(double occUnc, double attrUnc, int rate, int ratio, int duration, Network net) throws IOException {
         net.clearAllEvidence();
+        net.setNodeDefinition("VHighHeartRate", new double[]{1-occUnc, occUnc, occUnc, 1-occUnc});
+        net.setNodeDefinition("VHighBreathingRate", new double[]{1-occUnc, occUnc, occUnc, 1-occUnc});
+        net.setNodeDefinition("VLowOxygenSaturation", new double[]{1-occUnc, occUnc, occUnc, 1-occUnc});
         net.updateBeliefs();
 
-        // Uniform distributions for HR, BR and OX
-        final double haProb = net.getNodeValue("HeartAttackEvent")[0];
-
-        final BinomialDistribution p = new BinomialDistribution(1, haProb);
+        // Prior probability
+        final double ceProb = net.getNodeValue("COPDExacerbation")[0];
+        final BinomialDistribution ceDist = new BinomialDistribution(1, ceProb);
 
         // Distributions for sampling attribute values
         final double z = pToZ(attrUnc);
@@ -78,11 +78,11 @@ public class Generator {
         final NormalDistribution oxBelow = new NormalDistribution(oxLimit - z * oxSd, oxSd);
 
         // Create file writers. File format is: "occUnc-attrUnc-streamRate-eventType.trigs"
-        final String base = String.format("data/experiments/streams/%.3f-%.3f-%s-", occUnc, attrUnc, rate);
-        final FileWriter haFileWriter = new FileWriter(base + "HA.trigs");
-        final FileWriter hrFileWriter = new FileWriter(base + "HR.trigs");
-        final FileWriter brFileWriter = new FileWriter(base + "BR.trigs");
-        final FileWriter oxFileWriter = new FileWriter(base + "OX.trigs");
+        final String base = String.format("data/experiments/streams/%.2f-%.2f-%s_", occUnc, attrUnc, rate);
+        final FileWriter ceFileWriter = new FileWriter(base + ratio + "_ce.trigs");
+        final FileWriter hrFileWriter = new FileWriter(base + ratio + "_hr.trigs");
+        final FileWriter brFileWriter = new FileWriter(base + ratio + "_br.trigs");
+        final FileWriter oxFileWriter = new FileWriter(base + ratio + "_ox.trigs");
 
         // Add prefixes
         final String prefixes = "" +
@@ -92,55 +92,67 @@ public class Generator {
                 "@prefix sosa: <http://www.w3.org/ns/sosa/> . " +
                 "@prefix prov: <http://www.w3.org/ns/prov#> ." +
                 "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n";
-        haFileWriter.write(prefixes);
+        ceFileWriter.write(prefixes);
         hrFileWriter.write(prefixes);
         brFileWriter.write(prefixes);
         oxFileWriter.write(prefixes);
 
         long time = referenceTime;
-        int idCounter = 0;
-        for(int i=0; i < duration; i++){
+        int counter = 0;
+        for(int i=0; i < duration/1000; i++){
             for(int j=0; j < rate; j++) {
-                final int haOcc = p.sample();
-                if(haOcc == 1){
-                    net.setEvidence("HeartAttackEvent", "T");
-                } else {
-                    net.setEvidence("HeartAttackEvent", "F");
-                }
+                // Sample CE (occurred or not)
+                final int ceOcc = ceDist.sample();
+                net.setEvidence("COPDExacerbation", new String[]{"F", "T"}[ceOcc]);
                 net.updateBeliefs();
 
-                final double hrProb = net.getNodeValue("HighHeartRateEvent")[0];
-                final double brProb = net.getNodeValue("HighBreathingRateEvent")[0];
-                final double oxProb = net.getNodeValue("LowOxygenSaturationEvent")[0];
-                final int hrOcc = new BinomialDistribution(1, hrProb).sample();
-                final int brOcc = new BinomialDistribution(1, brProb).sample();
-                final int oxOcc = new BinomialDistribution(1, oxProb).sample();
-
-                // Create heart attack event (if sample = 1 then the event occurred)
+                // Time and feature of interest
                 final long t = time + j;
-                final String foi = "person" + idCounter;
+                final String foi = "person" + counter;
 
-                final HeartAttackEvent ha = new HeartAttackEvent(
-                        haOcc, // here crisp, not the prior haProb
-                        t, idCounter, foi,
-                        haOcc == 1 ? hrAbove.sample() : hrBelow.sample(),
-                        brOcc == 1 ? brAbove.sample() : brBelow.sample(),
-                        haOcc == 1 ? oxBelow.sample() : oxAbove.sample());
-                // Derived event types are associated with a probability (likelihood)
-                final Event hr = new HighHeartRateEvent(ha, hrOcc == 1 ? 1 - occUnc : occUnc, hrSd);
-                final Event br = new HighBreathingRateEvent(ha, brOcc == 1 ? 1 - occUnc : occUnc, brSd);
-                final Event ox = new LowOxygenSaturationEvent(ha, oxOcc == 1 ? 1 - occUnc : occUnc, oxSd);
-                haFileWriter.write(ha.toString().replaceAll("\\s+", " ") + "\n");
-                hrFileWriter.write(hr.toString().replaceAll("\\s+", " ") + "\n");
-                brFileWriter.write(br.toString().replaceAll("\\s+", " ") + "\n");
-                oxFileWriter.write(ox.toString().replaceAll("\\s+", " ") + "\n");
-                idCounter++;
+                // Ground data
+                final COPDExacerbation ce = new COPDExacerbation(ceOcc, t, "ce" + counter, foi);
+                ceFileWriter.write(ce.toString().replaceAll("\\s+", " ") + "\n");
+
+                // Find probabilities for dependent events
+                final double vhrProb = net.getNodeValue("VHighHeartRate")[0];
+                final double vbrProb = net.getNodeValue("VHighBreathingRate")[0];
+                final double voxProb = net.getNodeValue("VLowOxygenSaturation")[0];
+
+                for(int x=0; x < ratio; x++) {
+                    // Sample truth values
+                    final int hrOcc = new BinomialDistribution(1, vhrProb).sample();
+                    final int brOcc = new BinomialDistribution(1, vbrProb).sample();
+                    final int oxOcc = new BinomialDistribution(1, voxProb).sample();
+
+                    // Likelihood of the "derived" event types (likelihood)
+                    final double pHr = hrOcc == 1 ? 1 - occUnc : occUnc;
+                    final double pBr = brOcc == 1 ? 1 - occUnc : occUnc;
+                    final double pOx = oxOcc == 1 ? 1 - occUnc : occUnc;
+
+                    // Sampled values
+                    final double hrValue = hrOcc == 1 ? hrAbove.sample() : hrBelow.sample();
+                    final double brValue = brOcc == 1 ? brAbove.sample() : brBelow.sample();
+                    final double oxValue = oxOcc == 1 ? oxBelow.sample() : oxAbove.sample();
+
+                    // Create events
+                    final String eventSuffix = "_" + x;
+                    final Event hr = new HighHeartRate(pHr, t + x, "hr" + counter + eventSuffix, foi, hrValue, hrSd);
+                    final Event br = new HighBreathingRate(pBr, t + x, "br" + counter + eventSuffix, foi, brValue, brSd);
+                    final Event ox = new LowOxygenSaturation(pOx, t + x, "ox" + counter + eventSuffix, foi, oxValue, oxSd);
+
+                    // Write to files. Each event on a single line
+                    hrFileWriter.write(hr.toString().replaceAll("\\s+", " ") + "\n");
+                    brFileWriter.write(br.toString().replaceAll("\\s+", " ") + "\n");
+                    oxFileWriter.write(ox.toString().replaceAll("\\s+", " ") + "\n");
+                }
+                counter++;
             }
             time += 1000;
         }
 
         // close all writers
-        haFileWriter.close();
+        ceFileWriter.close();
         hrFileWriter.close();
         brFileWriter.close();
         oxFileWriter.close();

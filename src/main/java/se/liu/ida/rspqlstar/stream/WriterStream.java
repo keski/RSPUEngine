@@ -42,12 +42,12 @@ public class WriterStream implements ContinuousListener {
     }
 
     @Override
-    public void push(ResultSet rs) {
+    public void push(ResultSet rs, long startedAt) {
         ResultSetMgr.write(ps, rs, ResultSetLang.SPARQLResultSetText);
     }
 
     @Override
-    public void push(Dataset ds) {
+    public void push(Dataset ds, long startedAt) {
         RDFDataMgr.write(ps, ds, RDFFormat.TRIG);
     }
 

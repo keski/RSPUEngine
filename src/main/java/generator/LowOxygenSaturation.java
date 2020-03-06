@@ -1,14 +1,10 @@
 package generator;
 
-public class LowOxygenSaturationEvent extends Event {
-    public LowOxygenSaturationEvent(COPDExacerbation e, double prob, double stddev){
-        this(prob, e.time, e.id, e.foi, e.ox, stddev);
-    }
+public class LowOxygenSaturation extends Event {
 
-    public LowOxygenSaturationEvent(double prob, long time, int id, String foi, double value, double stddev){
-        super(prob, time, id, foi, value, stddev);
-        eid = "ox" + id;
-        derived = "LowOxygenSaturationEvent";
-        sde = "OxygenSaturationEvent";
+    public LowOxygenSaturation(double prob, long time, String id, String foi, double value, double sd){
+        super(prob, time, id, foi, value, sd);
+        derived = "LowOxygenSaturation";
+        sde = "OxygenSaturation";
     }
 }

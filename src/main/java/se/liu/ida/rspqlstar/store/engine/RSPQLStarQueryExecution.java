@@ -22,7 +22,7 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
     public StreamingDatasetGraph sdg;
     private boolean closed;
     private boolean stop = false;
-    private List<ContinuousListener> continuousListener = new ArrayList<>();
+    private ContinuousListener listener = null;
 
     // Collected execution times
     public ArrayList<Long> executionTimes = new ArrayList<>();
@@ -69,28 +69,12 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
                 final Dataset ds = DatasetFactory.create();
                 exec.execConstructDataset(ds);
                 logger.debug(query.getOutputStream() + " empty? " + ds.isEmpty());
-                push(ds);
+                listener.push(ds, t0);
                 exec.close();
-
-                final long execTime = System.currentTimeMillis() - t0;
-                logger.info("Query executed in: " + execTime + " ms");
                 nextExecution += query.getComputedEvery().toMillis();
             }
         };
         return r;
-    }
-
-    private void push(Dataset ds){
-        for(ContinuousListener listener: continuousListener){
-            logger.info("push ds to " + listener + " for " + query.getOutputStream());
-            listener.push(ds);
-        }
-    }
-
-    private void push(ResultSet rs){
-        for(ContinuousListener listener: continuousListener){
-            listener.push(rs);
-        }
     }
 
     private ResultSet execResultSet() {
@@ -128,11 +112,9 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
                 sdg.setTime(next_execution);
 
                 final long t0 = System.currentTimeMillis();
-                push(exec.execSelect());
+                listener.push(exec.execSelect(), t0);
                 exec.close();
 
-                final long execTime = System.currentTimeMillis() - t0;
-                System.out.println("Query executed in: " + execTime + " ms");
                 next_execution += query.getComputedEvery().toMillis();
             }
         };
@@ -157,7 +139,7 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
         }
     }
 
-    public void addContinuousListener(ContinuousListener listener){
-        continuousListener.add(listener);
+    public void setListener(ContinuousListener listener){
+        this.listener = listener;
     }
 }
