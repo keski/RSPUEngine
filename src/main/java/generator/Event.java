@@ -45,10 +45,10 @@ public class Event {
             event += String.format("<%s> rdf:type :%s .\n\t", eid, sde);
         }
         if(stddev > 0){
-            event += String.format( "<< <%s> sosa:hasSimpleResult %s >> rspu:error " +
-                    "\"Normal(0,%s)\"^^rspu:distribution .\n\t", eid, value, Math.pow(stddev, 2));
+            event += String.format( "<< <%s> sosa:hasSimpleResult %.1f >> rspu:error " +
+                    "\"Normal(0,%.1f)\"^^rspu:distribution .\n\t", eid, value, Math.pow(stddev, 2));
         } else {
-            event += String.format("<%s> sosa:hasSimpleResult %s .\n\t", eid, value);
+            event += String.format("<%s> sosa:hasSimpleResult %.1f .\n\t", eid, value);
         }
         event += String.format("<%s> sosa:featureOfInterest <%s> .\n}\n", eid, foi);
         event += String.format("<g_%s> prov:generatedAtTime \"%s\"^^xsd:dateTime .", eid, df.format(dateTime));

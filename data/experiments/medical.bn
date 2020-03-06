@@ -1,0 +1,24 @@
+{
+    "edges": {
+        "COPDExacerbation": [
+            "LowOxygenSaturation",
+            "HighBreathingRate",
+            "HighHeartRate"
+        ]
+    },
+    "nodes": {
+        "COPDExacerbation": [ 0.1, 0.90 ], // P(HeartAttack) = 0.1, P(-HeartAttack) = 0.9
+        "LowOxygenSaturation": [
+            0.9, 0.1, // P(LowOxygenSaturation|COPDExacerbation), P(-LowOxygenSaturation|COPDExacerbation)
+            0.1, 0.9  // P(LowOxygenSaturation|-COPDExacerbation), P(-LowOxygenSaturation|-COPDExacerbation)
+        ],
+        "HighBreathingRate": [
+            0.9, 0.1, // P(HighBreathingRate|HeartAttack), P(-HighBreathingRate|HeartAttack)
+            0.1, 0.9  // P(HighBreathingRate|-HeartAttack), P(-HighBreathingRate|-HeartAttack)
+        ],
+        "HighHeartRate": [
+            0.9, 0.1, // P(HighHeartRate|COPDExacerbation), P(-HighHeartRate|COPDExacerbation)
+            0.1, 0.9  // P(HighHeartRate|-COPDExacerbation), P(-HighHeartRate|-COPDExacerbation)
+        ]
+    }
+}

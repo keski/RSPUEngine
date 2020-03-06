@@ -1,7 +1,7 @@
 package generator;
 
 public class LowOxygenSaturationEvent extends Event {
-    public LowOxygenSaturationEvent(HeartAttackEvent e, double prob, double stddev){
+    public LowOxygenSaturationEvent(COPDExacerbation e, double prob, double stddev){
         this(prob, e.time, e.id, e.foi, e.ox, stddev);
     }
 

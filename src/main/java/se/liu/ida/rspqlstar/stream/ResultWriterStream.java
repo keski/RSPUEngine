@@ -37,6 +37,7 @@ public class ResultWriterStream implements ContinuousListener {
 
     @Override
     public void push(ResultSet rs) {
+        int counter = 0;
         if(printHeader){
             printHeader = false;
             final Iterator<String> iter = rs.getResultVars().iterator();
@@ -51,17 +52,18 @@ public class ResultWriterStream implements ContinuousListener {
 
         // skip results?
         if(skip > 0) {
-            int count = 0;
             while(rs.hasNext()) {
                 rs.next();
-                count++;
+                counter++;
             }
             skip--;
-            logger.info("Skip " + count + " results ");
+            logger.info("Skip " + counter + " results ");
             return;
         }
 
+        int missed = 0;
         while(rs.hasNext()){
+            counter++;
             final QuerySolution qs = rs.next();
 
             final Iterator<String> iter = rs.getResultVars().iterator();
@@ -77,8 +79,9 @@ public class ResultWriterStream implements ContinuousListener {
                 }
             }
             ps.println();
-            //logger.debug(qs);
         }
+        logger.debug("Wrote " + counter + " results");
+        logger.debug("Missed " + missed + " results");
     }
 
     @Override

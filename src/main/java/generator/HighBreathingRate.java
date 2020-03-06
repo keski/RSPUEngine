@@ -1,7 +1,7 @@
 package generator;
 
 public class HighBreathingRateEvent extends Event {
-    public HighBreathingRateEvent(HeartAttackEvent e, double prob, double stddev){
+    public HighBreathingRateEvent(COPDExacerbation e, double prob, double stddev){
         this(prob, e.time, e.id, e.foi, e.br, stddev);
     }
 

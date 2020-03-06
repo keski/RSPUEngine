@@ -98,6 +98,7 @@ public class RSPQLStarEngineManager {
         TimeUtil.silentSleep(2000);
         streams.values().iterator().forEachRemaining(RDFStarStream::clearListeners);
         executor.shutdown();
+        TimeUtil.silentSleep(2000);
     }
 
     /**

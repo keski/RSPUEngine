@@ -1,6 +1,7 @@
 package generator;
 
 import org.apache.commons.math3.distribution.BinomialDistribution;
+import org.apache.commons.math3.distribution.NormalDistribution;
 import org.apache.commons.math3.special.Erf;
 import org.apache.log4j.Logger;
 import se.liu.ida.rspqlstar.function.BayesianNetwork;
@@ -13,9 +14,9 @@ import java.io.IOException;
 public class Generator {
     // Use reference time for streams: 1582757970590 -> 2020-02-26T23:59
     public static final long referenceTime = 1582757970590l;
-    public static final int hrThreshold = 100;
-    public static final int brThreshold = 30;
-    public static final int oxThreshold = 90;
+    public static final float hrLimit = 100f;
+    public static final int brLimit = 30;
+    public static final int oxLimit = 90;
     private static final Logger logger = Logger.getLogger(Generator.class);
 
     public static void main(String[] args) throws IOException {
@@ -25,12 +26,12 @@ public class Generator {
         net.updateBeliefs();
 
         // Generate 2 minutes for each config
-        final int duration = 30;
-        final int[] rates = new int[]{1000};
+        final int duration = 30;      // 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000
+        final int[] rates = new int[]{100,1000}; //200,300,400,500,600,700,800,900,1000};
         // Likelihood (i.e., probability) that uncertain evidence is NOT correct
-        final double[] occUncList = new double[]{.001, .05, .10, .15, .20, .25, .30, .35, .40, .45, .50};
+        final double[] occUncList = new double[]{.001, .01, .05, .10, .25};
         // The probability (p-value) that the value is NOT within the query threshold
-        final double[] attrUncList = new double[]{.001, .05, .10, .15, .20, .25, .30, .35, .40, .45, .50};
+        final double[] attrUncList = new double[]{.001, .01, .05, .10, .25};
 
         final int total = rates.length * (occUncList.length + attrUncList.length);
         int progress = 0;
@@ -64,11 +65,17 @@ public class Generator {
 
         final BinomialDistribution p = new BinomialDistribution(1, haProb);
 
-        final double percentage = 0.01; // standard deviation is defined as 1% of threshold value
-        final double z = attrUnc == 0 ? 0 : pToZ(attrUnc);
-        final double hrShift = -z * hrThreshold * percentage;
-        final double brShift = -z * brThreshold * percentage;
-        final double oxShift = -z * oxThreshold * percentage;
+        // Distributions for sampling attribute values
+        final double z = pToZ(attrUnc);
+        final double hrSd = hrLimit * 0.01;
+        final NormalDistribution hrAbove = new NormalDistribution(hrLimit + z * hrSd, hrSd);
+        final NormalDistribution hrBelow = new NormalDistribution(hrLimit - z * hrSd, hrSd);
+        final double brSd = brLimit * 0.01;
+        final NormalDistribution brAbove = new NormalDistribution(brLimit + z * brSd, brSd);
+        final NormalDistribution brBelow = new NormalDistribution(brLimit - z * brSd, brSd);
+        final double oxSd = oxLimit * 0.01;
+        final NormalDistribution oxAbove = new NormalDistribution(oxLimit + z * oxSd, oxSd);
+        final NormalDistribution oxBelow = new NormalDistribution(oxLimit - z * oxSd, oxSd);
 
         // Create file writers. File format is: "occUnc-attrUnc-streamRate-eventType.trigs"
         final String base = String.format("data/experiments/streams/%.3f-%.3f-%s-", occUnc, attrUnc, rate);
@@ -110,28 +117,19 @@ public class Generator {
                 final int oxOcc = new BinomialDistribution(1, oxProb).sample();
 
                 // Create heart attack event (if sample = 1 then the event occurred)
-                final long t = time + j/2;
+                final long t = time + j;
                 final String foi = "person" + idCounter;
+
                 final HeartAttackEvent ha = new HeartAttackEvent(
                         haOcc, // here crisp, not the prior haProb
-                        t,
-                        idCounter,
-                        foi,
-                        hrThreshold + (hrOcc == 0 ? 1 : -1) * hrShift,
-                        brThreshold + (brOcc == 0 ? 1 : -1) * brShift,
-                        oxThreshold - (oxOcc == 0 ? 1 : -1) * oxShift);
-
-                // Derived event types are associated with a probability
-                // Note: occUnc is simply the degree to which the virtual node reflects the state of its parent.
-                final Event hr = new HighHeartRateEvent(ha,
-                        hrOcc == 1 ? 1 - occUnc : occUnc,
-                        hrThreshold * percentage);
-                final Event br = new HighBreathingRateEvent(ha,
-                        brOcc == 1 ? 1 - occUnc : occUnc,
-                        brThreshold * percentage);
-                final Event ox = new LowOxygenSaturationEvent(ha,
-                        oxOcc == 1 ? 1 - occUnc : occUnc,
-                        oxThreshold * percentage);
+                        t, idCounter, foi,
+                        haOcc == 1 ? hrAbove.sample() : hrBelow.sample(),
+                        brOcc == 1 ? brAbove.sample() : brBelow.sample(),
+                        haOcc == 1 ? oxBelow.sample() : oxAbove.sample());
+                // Derived event types are associated with a probability (likelihood)
+                final Event hr = new HighHeartRateEvent(ha, hrOcc == 1 ? 1 - occUnc : occUnc, hrSd);
+                final Event br = new HighBreathingRateEvent(ha, brOcc == 1 ? 1 - occUnc : occUnc, brSd);
+                final Event ox = new LowOxygenSaturationEvent(ha, oxOcc == 1 ? 1 - occUnc : occUnc, oxSd);
                 haFileWriter.write(ha.toString().replaceAll("\\s+", " ") + "\n");
                 hrFileWriter.write(hr.toString().replaceAll("\\s+", " ") + "\n");
                 brFileWriter.write(br.toString().replaceAll("\\s+", " ") + "\n");
@@ -155,6 +153,10 @@ public class Generator {
      * @return
      */
     public static double pToZ(double p) {
-        return Math.sqrt(2) * Erf.erfcInv(2*p);
+        if (p == 0) {
+            return 0;
+        } else {
+            return Math.sqrt(2) * Erf.erfcInv(2 * p);
+        }
     }
 }
