@@ -2,8 +2,6 @@
 .idea/
 *.iml
 target/
-data/performance-eval/streams/*.trigs
-data/use-case/streams/*.trigs
-output/
+data/experiments/streams
+data/experiments/results
 log.txt
-results.log
