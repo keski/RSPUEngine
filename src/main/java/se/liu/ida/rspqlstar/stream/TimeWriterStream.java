@@ -86,7 +86,7 @@ public class TimeWriterStream implements ContinuousListener {
             ratio = qs.get("ratio").asLiteral().getLexicalForm();
             threshold = qs.get("threshold").asLiteral().getLexicalForm();
             type = qs.get("type").asLiteral().getLexicalForm();
-            logger.debug(qs.get("max_confidence"));
+            //logger.debug(qs.get("max_confidence"));
         }
         final long executionTime = System.currentTimeMillis() - startedAt;
 
