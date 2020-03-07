@@ -18,21 +18,19 @@ WHERE {
             ?id1 sosa:hasSimpleResult ?hr .
         }
     }
-    FILTER(?hr > 100)
     WINDOW <w2> {
         GRAPH ?g2 {
             ?id2 sosa:featureOfInterest ?foi .
             ?id2 sosa:hasSimpleResult ?br .
         }
     }
-    FILTER(?br > 30)
     WINDOW <w3> {
         GRAPH ?g3 {
              ?id3 sosa:featureOfInterest ?foi .
              ?id3 sosa:hasSimpleResult ?ox .
         }
     }
-    FILTER(?ox < 90)
+    FILTER(?hr > 100 && ?br > 30 && ?ox < 90)
     BIND(1 AS ?confidence)
 }
 GROUP BY ?foi

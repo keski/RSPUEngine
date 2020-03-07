@@ -30,9 +30,9 @@ public class PerformanceEvaluation {
         final double attrUnc = .05;
         final int duration = 10000;
         final int skip = 5;
-        final double[] thresholds = {.10};
+        final double[] thresholds = {.05};
 
-        if(true){
+        if(false){
             Generator.run(duration + 5000, rates, ratios, new double[]{occUnc}, new double[]{attrUnc});
             return;
         }
@@ -43,6 +43,7 @@ public class PerformanceEvaluation {
         boolean attribute = true;
         boolean pattern = true;
         boolean combined = true;
+        boolean baseline = true;
 
         // Files and listeners
         final String attributeFile = root + "data/experiments/results/attribute_performance.csv";
@@ -51,25 +52,38 @@ public class PerformanceEvaluation {
         final TimeWriterStream patternListener = pattern ? new TimeWriterStream(patternFile) : null;
         final String combinedFile = root + "data/experiments/results/combined_performance.csv";
         final TimeWriterStream combinedListener = combined ? new TimeWriterStream(combinedFile) : null;
+        final String baselineFile = root + "data/experiments/results/baseline_performance.csv";
+        final TimeWriterStream baselineListener = combined ? new TimeWriterStream(baselineFile) : null;
 
-
-        int progress = 0;
+        int attributeCounter = 0;
+        int patternCounter = 0;
+        int combinedCounter = 0;
+        int baselineCounter = 0;
+        int total = ratios.length * rates.length * thresholds.length;
         for (int ratio : ratios) {
             for (int rate : rates) {
                 for(double threshold: thresholds) {
-                    progress++;
-                    logger.info("Progress: " + progress + " of " + ratios.length * rates.length * thresholds.length);
-                    if (attribute) {
+                    if(attribute) {
+                        attributeCounter++;
+                        logger.info("Attribute: " + attributeCounter + " of " + total);
                         performance("attribute", 0, attrUnc, threshold, rate, ratio, attributeListener, duration, skip);
-                        performance("baseline", 0, attrUnc, threshold, rate, ratio, attributeListener, duration, skip);
+                        performance("attribute2", 0, attrUnc, threshold, rate, ratio, attributeListener, duration, skip);
                     }
-                    if (pattern) {
+                    if(pattern) {
+                        patternCounter++;
+                        logger.info("Pattern: " + patternCounter + " of " + total);
                         performance("pattern", occUnc, 0, threshold, rate, ratio, patternListener, duration, skip);
-                        performance("baseline", occUnc, 0, threshold, rate, ratio, patternListener, duration, skip);
                     }
-                    if (combined) {
+                    if(combined) {
+                        combinedCounter++;
+                        logger.info("Combined: " + combinedCounter + " of " + total);
                         performance("combined", 0, attrUnc, threshold, rate, ratio, combinedListener, duration, skip);
-                        performance("baseline", 0, attrUnc, threshold, rate, ratio, combinedListener, duration, skip);
+                    }
+                    if(baseline){
+                        baselineCounter++;
+                        logger.info("Baseline: " + baselineCounter + " of " + total);
+                        // Uncertainty has no effect on performance, pick any unc
+                        performance("baseline", occUnc, 0, threshold, rate, ratio, baselineListener, duration, skip);
                     }
                 }
             }
@@ -78,6 +92,7 @@ public class PerformanceEvaluation {
         if(attribute) attributeListener.close();
         if(pattern) patternListener.close();
         if(combined) combinedListener.close();
+        if(baseline) baselineListener.close();
     }
 
     /**

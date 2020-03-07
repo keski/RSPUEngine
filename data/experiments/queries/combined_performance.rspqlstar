@@ -17,20 +17,21 @@ WHERE {
             << ?id1 sosa:hasSimpleResult ?hr >> rspu:error ?hrError .
         }
     }
-    BIND(rspu:greaterThan(rspu:add(?hrError, ?hr), 100) AS ?pHr)
     WINDOW <w2> {
         GRAPH ?g2 {
             ?id2 sosa:featureOfInterest ?foi .
             << ?id2 sosa:hasSimpleResult ?br >> rspu:error ?brError .
         }
     }
-    BIND(rspu:greaterThan(rspu:add(?brError, ?br), 30) AS ?pBr)
     WINDOW <w3> {
         GRAPH ?g3 {
              ?id3 sosa:featureOfInterest ?foi .
             << ?id3 sosa:hasSimpleResult ?ox >> rspu:error ?oxError .
         }
     }
+
+    BIND(rspu:greaterThan(rspu:add(?hrError, ?hr), 100) AS ?pHr)
+    BIND(rspu:greaterThan(rspu:add(?brError, ?br), 30) AS ?pBr)
     BIND(rspu:lessThan(rspu:add(?oxError, ?ox), 90) AS ?pOx)
 
     BIND(rspu:belief(<http://ecare/bn#medical>,
