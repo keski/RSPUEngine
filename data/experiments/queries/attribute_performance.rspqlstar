@@ -1,17 +1,13 @@
-# Correctness query. Not optimized for performance.
-# Determines TP, TN, FP, FN
-
 BASE <http://base/>
 PREFIX : <http://ecare#>
 PREFIX rspu: <http://w3id.org/rsp/rspu#>
 PREFIX sosa: <http://www.w3.org/ns/sosa/>
 
 REGISTER STREAM <correctness> COMPUTED EVERY PT1S AS
-SELECT ?pTot ?actual ?foi ("attribute" AS ?type) ($OCCURRENCE$ AS ?occurrence) ($ATTRIBUTE$ AS ?attribute) ?threshold ?tn ?tp ?fp ?fn
+SELECT ($RATE$ AS ?rate) ($RATIO$ AS ?ratio) ("Attribute" AS ?type) ($THRESHOLD$ AS ?threshold) (MAX(?confidence) AS ?max_confidence) ?foi
 FROM NAMED WINDOW <w1> ON <stream/hr> [RANGE PT1S STEP PT1S]
 FROM NAMED WINDOW <w2> ON <stream/br> [RANGE PT1S STEP PT1S]
 FROM NAMED WINDOW <w3> ON <stream/ox> [RANGE PT1S STEP PT1S]
-FROM NAMED WINDOW <w4> ON <stream/ce> [RANGE PT1S STEP PT1S]
 WHERE {
     WINDOW <w1> {
         GRAPH ?g1 {
@@ -20,6 +16,7 @@ WHERE {
         }
     }
     BIND(rspu:greaterThan(rspu:add(?hrError, ?hr), 100) AS ?pHr)
+    FILTER($THRESHOLD$ < ?pHr)
     WINDOW <w2> {
         GRAPH ?g2 {
             ?id2 sosa:featureOfInterest ?foi .
@@ -27,7 +24,7 @@ WHERE {
         }
     }
     BIND(rspu:greaterThan(rspu:add(?brError, ?br), 30) AS ?pBr)
-
+    FILTER($THRESHOLD$ < ?pHr * ?pBr)
     WINDOW <w3> {
         GRAPH ?g3 {
              ?id3 sosa:featureOfInterest ?foi .
@@ -35,25 +32,7 @@ WHERE {
         }
     }
     BIND(rspu:lessThan(rspu:add(?oxError, ?ox), 90) AS ?pOx)
-
-    WINDOW <w4> {
-        GRAPH ?g4 {
-            ?id4 sosa:featureOfInterest ?foi .
-            << ?id4 a :COPDExacerbation >> rspu:probability ?pCe .
-        }
-    }
-
-    BIND(rspu:belief(<http://ecare/bn#medical>,
-        :COPDExacerbation, true,
-        :HighHeartRate, ?pHr,
-        :HighBreathingRate, ?pBr,
-        :LowOxygenSaturation, ?pOx) AS ?pTot)
-
-    BIND($THRESHOLD$ AS ?threshold)
-    BIND(?pTot >= ?threshold AS ?predicted)
-    BIND(?pCe = 1 AS ?actual)
-    BIND(?predicted && ?actual AS ?tp)
-    BIND(?predicted=false && ?actual=false AS ?tn)
-    BIND(?predicted && ?actual=false AS ?fp)
-    BIND(?predicted=false && ?actual AS ?fn)
+    BIND(?pHr * ?pBr * ?pOx AS ?confidence)
+    FILTER($THRESHOLD$ < ?confidence)
 }
+GROUP BY ?foi

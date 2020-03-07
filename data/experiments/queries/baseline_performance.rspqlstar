@@ -1,0 +1,38 @@
+# Performance query. Does not leverage filters for naive optimization.
+
+BASE <http://base/>
+PREFIX : <http://ecare#>
+PREFIX rspu: <http://w3id.org/rsp/rspu#>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+
+REGISTER STREAM <correctness> COMPUTED EVERY PT1S AS
+SELECT ($RATE$ AS ?rate) ($RATIO$ AS ?ratio) ("Baseline" AS ?type) ($THRESHOLD$ AS ?threshold) (MAX(?confidence) AS ?max_confidence) ?foi
+(MAX(?hr) AS ?maxHr) (MAX(?br) AS ?maxBr) (MIN(?box) AS ?maxOx)
+FROM NAMED WINDOW <w1> ON <stream/hr> [RANGE PT1S STEP PT1S]
+FROM NAMED WINDOW <w2> ON <stream/br> [RANGE PT1S STEP PT1S]
+FROM NAMED WINDOW <w3> ON <stream/ox> [RANGE PT1S STEP PT1S]
+WHERE {
+    WINDOW <w1> {
+        GRAPH ?g1 {
+            ?id1 sosa:featureOfInterest ?foi .
+            ?id1 sosa:hasSimpleResult ?hr .
+        }
+    }
+    FILTER(?hr > 100)
+    WINDOW <w2> {
+        GRAPH ?g2 {
+            ?id2 sosa:featureOfInterest ?foi .
+            ?id2 sosa:hasSimpleResult ?br .
+        }
+    }
+    FILTER(?br > 30)
+    WINDOW <w3> {
+        GRAPH ?g3 {
+             ?id3 sosa:featureOfInterest ?foi .
+             ?id3 sosa:hasSimpleResult ?ox .
+        }
+    }
+    FILTER(?ox < 90)
+    BIND(1 AS ?confidence)
+}
+GROUP BY ?foi
