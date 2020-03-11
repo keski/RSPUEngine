@@ -57,8 +57,6 @@ public class TimeWriterStream implements ContinuousListener {
             ps.print(sep);
             ps.print("type");
             ps.print(sep);
-            ps.print("threshold");
-            ps.print(sep);
             ps.print("exec_time");
             ps.println();
         }
@@ -74,19 +72,21 @@ public class TimeWriterStream implements ContinuousListener {
             return;
         }
 
+        if(!rs.hasNext()){
+            logger.warn("Empty result" );
+        }
+
         // collect results
         String rate = "-1";
         String ratio = "-1";
-        String threshold = "-1";
         String type = "-1";
         while(rs.hasNext()) {
             counter++;
             final QuerySolution qs = rs.next();
             rate = qs.get("rate").asLiteral().getLexicalForm();
             ratio = qs.get("ratio").asLiteral().getLexicalForm();
-            threshold = qs.get("threshold").asLiteral().getLexicalForm();
             type = qs.get("type").asLiteral().getLexicalForm();
-            //logger.debug(qs.get("max_confidence"));
+            //logger.debug(qs);
         }
         final long executionTime = System.currentTimeMillis() - startedAt;
 
@@ -96,12 +96,9 @@ public class TimeWriterStream implements ContinuousListener {
         ps.print(sep);
         ps.print(type);
         ps.print(sep);
-        ps.print(threshold);
-        ps.print(sep);
         ps.print(executionTime);
         ps.println();
-        logger.debug("Executed in " + executionTime + " ms");
-        logger.debug("Found " + counter + " results");
+        logger.debug("Executed in " + executionTime + " ms,  found " + counter + " results");
     }
 
     @Override
