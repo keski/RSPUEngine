@@ -2,6 +2,7 @@
 .idea/
 *.iml
 target/
-data/experiments/streams
-data/experiments/results
+experiments/streams
+experiments/results
 log.txt
+results.txt

@@ -4,7 +4,7 @@ PREFIX rspu: <http://w3id.org/rsp/rspu#>
 PREFIX sosa: <http://www.w3.org/ns/sosa/>
 
 REGISTER STREAM <correctness> COMPUTED EVERY PT1S AS
-SELECT ($RATE$ AS ?rate) ($RATIO$ AS ?ratio) ("Pattern" AS ?type) ($THRESHOLD$ AS ?threshold) (MAX(?confidence) AS ?max_confidence) ?foi
+SELECT ($RATE$ AS ?rate) ($RATIO$ AS ?ratio) ("Pattern" AS ?type) ?confidence ?foi
 FROM NAMED WINDOW <w1> ON <stream/hr> [RANGE PT1S STEP PT1S]
 FROM NAMED WINDOW <w2> ON <stream/br> [RANGE PT1S STEP PT1S]
 FROM NAMED WINDOW <w3> ON <stream/ox> [RANGE PT1S STEP PT1S]
@@ -37,4 +37,3 @@ WHERE {
         :HighBreathingRate, ?pBr,
         :LowOxygenSaturation, ?pOx) AS ?confidence)
 }
-GROUP BY ?foi

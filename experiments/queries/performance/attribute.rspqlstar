@@ -4,32 +4,33 @@ PREFIX rspu: <http://w3id.org/rsp/rspu#>
 PREFIX sosa: <http://www.w3.org/ns/sosa/>
 
 REGISTER STREAM <correctness> COMPUTED EVERY PT1S AS
-SELECT ($RATE$ AS ?rate) ($RATIO$ AS ?ratio) ("Attribute" AS ?type) ($THRESHOLD$ AS ?threshold) (MAX(?confidence) AS ?max_confidence) ?foi
+SELECT ($RATE$ AS ?rate) ($RATIO$ AS ?ratio) ("Attribute" AS ?type) ?confidence ?foi
 FROM NAMED WINDOW <w1> ON <stream/hr> [RANGE PT1S STEP PT1S]
 FROM NAMED WINDOW <w2> ON <stream/br> [RANGE PT1S STEP PT1S]
 FROM NAMED WINDOW <w3> ON <stream/ox> [RANGE PT1S STEP PT1S]
 WHERE {
     WINDOW <w1> {
         GRAPH ?g1 {
-            ?id1 sosa:featureOfInterest ?foi .
+            ?id1 sosa:featureOfInterest ?foi ;
+                 a :HeartRate .
             << ?id1 sosa:hasSimpleResult ?hr >> rspu:error ?hrError .
         }
     }
     WINDOW <w2> {
         GRAPH ?g2 {
-            ?id2 sosa:featureOfInterest ?foi .
+            ?id2 sosa:featureOfInterest ?foi ;
+                 a :BreathingRate .
             << ?id2 sosa:hasSimpleResult ?br >> rspu:error ?brError .
         }
     }
     WINDOW <w3> {
         GRAPH ?g3 {
-             ?id3 sosa:featureOfInterest ?foi .
+            ?id3 sosa:featureOfInterest ?foi ;
+                 a :OxygenSaturation .
             << ?id3 sosa:hasSimpleResult ?ox >> rspu:error ?oxError .
         }
     }
-    BIND(rspu:greaterThan(rspu:add(?hrError, ?hr), 100) AS ?pHr)
-    BIND(rspu:greaterThan(rspu:add(?brError, ?br), 30) AS ?pBr)
-    BIND(rspu:lessThan(rspu:add(?oxError, ?ox), 90) AS ?pOx)
-    BIND(?pHr * ?pBr * ?pOx AS ?confidence)
+    BIND( rspu:greaterThan(rspu:sum(?hrError, ?hr), 100) *
+          rspu:greaterThan(rspu:sum(?brError, ?br), 30) *
+          rspu:lessThan(rspu:sum(?oxError, ?ox), 90) AS ?confidence )
 }
-GROUP BY ?foi
