@@ -5,4 +5,4 @@ target/
 experiments/streams
 experiments/results
 log.txt
-results.txt
+results.log
