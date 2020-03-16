@@ -14,4 +14,7 @@ public interface ContinuousListener {
         push(ds, -1);
     };
     void push(RDFStarStreamElement tg);
+    default void setSkip(int skip){};
+    default void flush(){};
+    default void close(){};
 }

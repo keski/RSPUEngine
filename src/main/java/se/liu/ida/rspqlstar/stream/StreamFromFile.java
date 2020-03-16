@@ -63,8 +63,12 @@ public class StreamFromFile implements Runnable {
                     long sleep = tg.time - TimeUtil.getTime().getTime();
                     if(sleep > 0){
                         TimeUtil.silentSleep(sleep);
+                        //System.err.println(sleep);
                     }
                     push(tg);
+                    if(!linesIter.hasNext()){
+                        logger.warn("No more data to stream into " + stream.iri);
+                    }
                 }
             }
         } catch (IOException e) {

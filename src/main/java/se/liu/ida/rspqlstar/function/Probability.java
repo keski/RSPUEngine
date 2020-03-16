@@ -1,24 +1,13 @@
 package se.liu.ida.rspqlstar.function;
 
 import org.apache.commons.math3.distribution.*;
-import org.apache.jena.graph.NodeFactory;
-import org.apache.jena.reasoner.rulesys.builtins.Min;
 import org.apache.jena.sparql.expr.ExprEvalException;
 import org.apache.jena.sparql.expr.NodeValue;
-import org.apache.jena.sparql.expr.nodevalue.NodeValueFloat;
-import org.apache.jena.sparql.expr.nodevalue.NodeValueNode;
 import org.apache.jena.sparql.function.FunctionBase2;
 import org.apache.jena.sparql.function.FunctionBase3;
 import org.apache.jena.sparql.function.FunctionFactory;
 import org.apache.jena.sparql.function.FunctionRegistry;
-import org.apache.jena.sparql.function.library.Math_pow;
-import org.apache.jena.sparql.function.library.leviathan.degreesToRadians;
 import se.liu.ida.rspqlstar.datatypes.ProbabilityDistribution;
-import se.liu.ida.rspqlstar.util.Utils;
-
-import javax.swing.*;
-import javax.xml.soap.Node;
-import java.io.File;
 
 public class Probability {
     private static final double MIN_VALUE = 0.0000001; // Double.MIN_VALUE?
@@ -27,12 +16,12 @@ public class Probability {
     public static void init(){
         // Probability distribution
         FunctionRegistry.get().put(ns + "lessThan", Probability.lessThan);
-        //FunctionRegistry.get().put(ns + "lte", Probability.lessThanOrEqual);
         FunctionRegistry.get().put(ns + "greaterThan", Probability.greaterThan);
-        //FunctionRegistry.get().put(ns + "gte", Probability.greaterThanOrEqual);
+        FunctionRegistry.get().put(ns + "lessThanOrEqual", Probability.lessThanOrEqual);
+        FunctionRegistry.get().put(ns + "greaterThanOrEqual", Probability.greaterThanOrEqual);
         FunctionRegistry.get().put(ns + "between", Probability.between);
-        FunctionRegistry.get().put(ns + "add", Probability.add);
-        FunctionRegistry.get().put(ns + "subtract", Probability.subtract);
+        FunctionRegistry.get().put(ns + "sum", Probability.sum);
+        FunctionRegistry.get().put(ns + "difference", Probability.difference);
     }
 
     public static FunctionFactory lessThan = s -> new FunctionBase2() { // less than or equal
@@ -71,17 +60,17 @@ public class Probability {
     };
 
 
-    public static FunctionFactory add = s -> new FunctionBase2() {
+    public static FunctionFactory sum = s -> new FunctionBase2() {
         @Override
         public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            return Probability.add(nv1, nv2);
+            return Probability.sum(nv1, nv2);
         }
     };
 
-    public static FunctionFactory subtract = s -> new FunctionBase2() {
+    public static FunctionFactory difference = s -> new FunctionBase2() {
         @Override
         public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            return Probability.subtract(nv1, nv2);
+            return Probability.difference(nv1, nv2);
         }
     };
 
@@ -91,7 +80,7 @@ public class Probability {
      * @param nv2
      * @return
      */
-    private static NodeValue subtract(NodeValue nv1, NodeValue nv2){
+    private static NodeValue difference(NodeValue nv1, NodeValue nv2){
         final Object v1 = getLiteral(nv1);
         final Object v2 = getLiteral(nv2);
 
@@ -99,11 +88,11 @@ public class Probability {
         if(v1 instanceof Double && v2 instanceof Double){
             nv = NodeValue.makeDecimal((double) v1 - (double) v2);
         } else if(v1 instanceof Double){
-            throw new ExprEvalException("subtract: invalid order of arguments");
+            throw new ExprEvalException("difference: invalid order of arguments");
         } else if(v2 instanceof RealDistribution){
-            nv = subtract((RealDistribution) v1, (RealDistribution) v2);
+            nv = difference((RealDistribution) v1, (RealDistribution) v2);
         } else {
-            nv = subtract((RealDistribution) v1, (double) v2);
+            nv = difference((RealDistribution) v1, (double) v2);
         }
         return nv;
     }
@@ -114,7 +103,7 @@ public class Probability {
      * @param nv2
      * @return
      */
-    private static NodeValue add(NodeValue nv1, NodeValue nv2){
+    private static NodeValue sum(NodeValue nv1, NodeValue nv2){
         final Object v1 = getLiteral(nv1);
         final Object v2 = getLiteral(nv2);
 
@@ -122,11 +111,11 @@ public class Probability {
         if(v1 instanceof Double && v2 instanceof Double){
             nv = NodeValue.makeDecimal((double) v1 + (double) v2);
         } else if(v1 instanceof Double){
-            throw new ExprEvalException("add: invalid order of arguments");
+            throw new ExprEvalException("sum: invalid order of arguments");
         } else if(v2 instanceof RealDistribution){
-            nv = add((RealDistribution) v1, (RealDistribution) v2);
+            nv = sum((RealDistribution) v1, (RealDistribution) v2);
         } else {
-            nv = add((RealDistribution) v1, (double) v2);
+            nv = sum((RealDistribution) v1, (double) v2);
         }
         return nv;
     }
@@ -182,9 +171,9 @@ public class Probability {
             final double prob = ((RealDistribution) o1).cumulativeProbability((double) o2 + diff);
             nv = NodeValue.makeDecimal(1 - prob);
         } else if (o2 instanceof Double) {
-            throw new ExprEvalException("greaterThan: invalid order of arguments");
+            throw new ExprEvalException("greaterThan/greaterThanOrEqual: invalid order of arguments");
         } else {
-            throw new ExprEvalException("greaterThan: comparing distributions is not implemented");
+            throw new ExprEvalException("greaterThan/greaterThanOrEqual: comparing distributions is not implemented");
         }
         return nv;
     }
@@ -212,9 +201,9 @@ public class Probability {
             final double prob = ((RealDistribution) o1).cumulativeProbability((double) o2 - diff);
             nv = NodeValue.makeDecimal(prob);
         } else if (o2 instanceof Double) {
-            throw new ExprEvalException("lessThan: invalid order of arguments");
+            throw new ExprEvalException("lessThan/lessThanOrEqual: invalid order of arguments");
         } else {
-            throw new ExprEvalException("lessThan: comparing distributions is not implemented");
+            throw new ExprEvalException("lessThan/lessThanOrEqual: comparing distributions is not implemented");
         }
         return nv;
     }
@@ -234,16 +223,16 @@ public class Probability {
      * @param k
      * @return
      */
-    public static NodeValue add(RealDistribution x, double k) {
+    public static NodeValue sum(RealDistribution x, double k) {
         final NodeValue nv;
         if(x instanceof NormalDistribution){
             final double mean = x.getNumericalMean() + k;
             final double variance = x.getNumericalVariance();
-            nv = NodeValue.makeNode(String.format("Normal(%s, %s)", mean, variance), ProbabilityDistribution.type);
+            nv = NodeValue.makeNode(String.format("N(%s, %s)", mean, variance), ProbabilityDistribution.type);
         } else if(x instanceof UniformRealDistribution){
             final double lower = x.getSupportLowerBound() + k;
             final double upper = x.getSupportUpperBound() + k;
-            final String lexicalForm = String.format("Uniform(%s, %s)", lower, upper);
+            final String lexicalForm = String.format("U(%s, %s)", lower, upper);
             nv = NodeValue.makeNode(lexicalForm, ProbabilityDistribution.type);
         } else {
             throw new ExprEvalException("unsupported distribution type");
@@ -257,12 +246,12 @@ public class Probability {
      * @param d2
      * @return
      */
-    public static NodeValue add(RealDistribution d1, RealDistribution d2) {
+    public static NodeValue sum(RealDistribution d1, RealDistribution d2) {
         final NodeValue nv;
         if(d1 instanceof NormalDistribution && d2 instanceof NormalDistribution){
             final double mean = d1.getNumericalMean() + d2.getNumericalMean();
             final double variance = d1.getNumericalVariance() + d2.getNumericalVariance();
-            final String lexicalForm = String.format("Normal(%s, %s)", mean, variance);
+            final String lexicalForm = String.format("N(%s, %s)", mean, variance);
             nv = NodeValue.makeNode(lexicalForm, ProbabilityDistribution.type);
         } else {
             throw new ExprEvalException("unsupported distribution type");
@@ -276,16 +265,16 @@ public class Probability {
      * @param k
      * @return
      */
-    public static NodeValue subtract(RealDistribution x, double k) {
+    public static NodeValue difference(RealDistribution x, double k) {
         final NodeValue nv;
         if(x instanceof NormalDistribution){
             final double mean = x.getNumericalMean() - k;
             final double variance = x.getNumericalVariance();
-            nv = NodeValue.makeNode(String.format("Normal(%s, %s)", mean, variance), ProbabilityDistribution.type);
+            nv = NodeValue.makeNode(String.format("N(%s, %s)", mean, variance), ProbabilityDistribution.type);
         } else if(x instanceof UniformRealDistribution){
             final double lower = x.getSupportLowerBound() - k;
             final double upper = x.getSupportUpperBound() - k;
-            final String lexicalForm = String.format("Uniform(%s, %s)", lower, upper);
+            final String lexicalForm = String.format("U(%s, %s)", lower, upper);
             nv = NodeValue.makeNode(lexicalForm, ProbabilityDistribution.type);
         } else {
             throw new ExprEvalException("unsupported distribution type");
@@ -299,12 +288,12 @@ public class Probability {
      * @param d2
      * @return
      */
-    public static NodeValue subtract(RealDistribution d1, RealDistribution d2) {
+    public static NodeValue difference(RealDistribution d1, RealDistribution d2) {
         final NodeValue nv;
         if(d1 instanceof NormalDistribution && d2 instanceof NormalDistribution){
             final double mean = d1.getNumericalMean() - d2.getNumericalMean();
             final double variance = d1.getNumericalVariance() + d2.getNumericalVariance();
-            final String lexicalForm = String.format("Normal(%s, %s)", mean, variance);
+            final String lexicalForm = String.format("N(%s, %s)", mean, variance);
             nv = NodeValue.makeNode(lexicalForm, ProbabilityDistribution.type);
         } else {
             throw new ExprEvalException("unsupported distribution type");

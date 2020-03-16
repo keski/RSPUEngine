@@ -28,11 +28,10 @@ public class CorrectnessEvaluation {
         final double[] attrUncList = {.01, .05, .10, .25};
         final int duration = 10000;
         final int skip = 5;
-        final double[] thresholds = {0, .01, .05, .10, .15, .20, .25, .30, .35, .40, .45, .50, .55, .60, .65,
-                .70, .75, .80, .85, .90, .95, 0.99, 0.999};
+        final double[] thresholds = {0, .01, .05, .10, .15, .20, .25, .30, .70, .75, .80, .85, .90, .95, 0.99, 0.999};
 
         if(false){
-            Generator.run(duration + 5000, new int[]{rate}, new int[]{ratio}, occUncList, attrUncList);
+            Generator.run(duration + 5000, new int[]{rate}, occUncList, attrUncList);
             return;
         }
 
@@ -40,9 +39,10 @@ public class CorrectnessEvaluation {
         BayesianNetwork.loadNetwork("http://ecare/bn#medical", root + "data/experiments/medical.bn");
 
         // Activate/de-active runs
-        boolean attribute = true;
-        boolean pattern = true;
-        boolean combined = true;
+        boolean attribute = false;
+        boolean pattern = false;
+        boolean combined = false;
+        boolean baseline = true;
 
         // Files and listeners
         final String attributeFile = root + "data/experiments/results/attribute_correctness.csv";
@@ -52,11 +52,14 @@ public class CorrectnessEvaluation {
         final String combinedFile = root + "data/experiments/results/combined_correctness.csv";
         final ResultWriterStream combinedListener = combined ? new ResultWriterStream(combinedFile) : null;
 
+        final String baselineFile = root + "data/experiments/results/baseline_correctness.csv";
+        final ResultWriterStream baselineListener = baseline ? new ResultWriterStream(baselineFile) : null;
 
         int attributeCounter = 0;
         int patternCounter = 0;
         int combinedCounter = 0;
         for (double threshold : thresholds) {
+            // Uncertainty
             if (attribute) {
                 for (double attrUnc : attrUncList) {
                     attributeCounter++;
@@ -79,9 +82,22 @@ public class CorrectnessEvaluation {
                 }
             }
         }
+        if(baseline) {
+            for (double attrUnc : attrUncList) {
+                correctness("attribute-baseline", 0, attrUnc, 0, rate, ratio, baselineListener, duration, skip);
+                correctness("combined-baseline", 0, attrUnc, 0, rate, ratio, baselineListener, duration, skip);
+            }
+            for (double occUnc : occUncList) {
+                correctness("pattern-baseline", occUnc, 0, 0, rate, ratio, baselineListener, duration, skip);
+            }
+        }
+
+
         if(attribute) attributeListener.close();
         if(pattern) patternListener.close();
         if(combined) combinedListener.close();
+        if(baseline) baselineListener.close();
+
     }
 
     /**

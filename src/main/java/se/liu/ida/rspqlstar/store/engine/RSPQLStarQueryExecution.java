@@ -24,9 +24,6 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
     private boolean stop = false;
     private ContinuousListener listener = null;
 
-    // Collected execution times
-    public ArrayList<Long> executionTimes = new ArrayList<>();
-
     public RSPQLStarQueryExecution(RSPQLStarQuery query, StreamingDatasetGraph sdg){
         this(query, DatasetFactory.wrap(sdg));
         this.query = query;
@@ -56,9 +53,9 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
         }
     }
 
-    public Runnable execContinuousConstruct() {
+    public Runnable execContinuousConstruct(long firstExecution) {
         final Runnable r = () -> {
-            long nextExecution = TimeUtil.getTime().getTime();
+            long nextExecution = firstExecution;
             while(!stop) {
                 final RSPQLStarQueryExecution exec = new RSPQLStarQueryExecution(query, sdg);
                 delay(nextExecution);
@@ -103,19 +100,20 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
     /**
      * Run periodic execution of query.
      */
-    public Runnable execContinuousSelect() {
+    public Runnable execContinuousSelect(long firstExecution) {
         final Runnable r = () -> {
-            long next_execution = TimeUtil.getTime().getTime();
+            long nextExecution = firstExecution;
             while(!stop) {
+                delay(nextExecution);
+                logger.info("Executing at: " + nextExecution);
                 final RSPQLStarQueryExecution exec = new RSPQLStarQueryExecution(query, sdg);
-                delay(next_execution);
-                sdg.setTime(next_execution);
+                sdg.setTime(nextExecution);
 
                 final long t0 = System.currentTimeMillis();
                 listener.push(exec.execSelect(), t0);
                 exec.close();
 
-                next_execution += query.getComputedEvery().toMillis();
+                nextExecution += query.getComputedEvery().toMillis();
             }
         };
         return r;

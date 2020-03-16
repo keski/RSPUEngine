@@ -45,9 +45,9 @@ public class Event {
         }
         if(sd > 0){
             event += String.format( "<< <%s> sosa:hasSimpleResult %.1f >> rspu:error " +
-                    "\"Normal(0,%.1f)\"^^rspu:distribution .\n\t", id, value, Math.pow(sd, 2));
+                    "\"N(0,%.2f)\"^^rspu:distribution .\n\t", id, value, Math.pow(sd, 2));
         } else {
-            event += String.format("<%s> sosa:hasSimpleResult %.1f .\n\t", id, value);
+            event += String.format("<%s> sosa:hasSimpleResult %.2f .\n\t", id, value);
         }
         event += String.format("<%s> sosa:featureOfInterest <%s> .\n}\n", id, foi);
         event += String.format("<g_%s> prov:generatedAtTime \"%s\"^^xsd:dateTime .", id, df.format(dateTime));

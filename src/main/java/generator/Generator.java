@@ -20,26 +20,24 @@ public class Generator {
     public static final int oxLimit = 90;
     private static final Logger logger = Logger.getLogger(Generator.class);
 
-    public static void run(int duration, int[] rates, int[] ratios, double[] occUncList, double[] attrUncList) throws IOException {
+    public static void run(int duration, int[] rates, double[] occUncList, double[] attrUncList) throws IOException {
         BayesianNetwork.init();
         final String root = new File("").getAbsolutePath() + "/";
-        final Network net = BayesianNetwork.loadNetwork("", root + "data/experiments/medical-generator.bn");
+        final Network net = BayesianNetwork.loadNetwork("", root + "experiments/medical-generator.bn");
         net.updateBeliefs();
 
-        final int total = rates.length * (occUncList.length + attrUncList.length) * ratios.length;
+        final int total = rates.length * (occUncList.length + attrUncList.length);
         int progress = 0;
-        for(int ratio : ratios){
-            for(int rate : rates) {
-                for (double occUnc : occUncList) {
-                    progress++;
-                    logger.info("Generating: " + progress + " of " + total);
-                    generate(occUnc, 0, rate, ratio, duration, net);
-                }
-                for (double attrUnc : attrUncList) {
-                    progress++;
-                    logger.info("Generating: " + progress + " of " + total);
-                    generate(0, attrUnc, rate, ratio, duration, net);
-                }
+        for(int rate : rates) {
+            for (double occUnc : occUncList) {
+                progress++;
+                logger.info("Generating: " + progress + " of " + total);
+                generate(occUnc, 0, rate, 1, duration, net);
+            }
+            for (double attrUnc : attrUncList) {
+                progress++;
+                logger.info("Generating: " + progress + " of " + total);
+                generate(0, attrUnc, rate, 1, duration, net);
             }
         }
     }
@@ -78,11 +76,11 @@ public class Generator {
         final NormalDistribution oxBelow = new NormalDistribution(oxLimit - z * oxSd, oxSd);
 
         // Create file writers. File format is: "occUnc-attrUnc-streamRate-eventType.trigs"
-        final String base = String.format("data/experiments/streams/%.2f-%.2f-%s_", occUnc, attrUnc, rate);
-        final FileWriter ceFileWriter = new FileWriter(base + ratio + "_ce.trigs");
-        final FileWriter hrFileWriter = new FileWriter(base + ratio + "_hr.trigs");
-        final FileWriter brFileWriter = new FileWriter(base + ratio + "_br.trigs");
-        final FileWriter oxFileWriter = new FileWriter(base + ratio + "_ox.trigs");
+        final String base = String.format("experiments/streams/%.2f-%.2f-%s_%s", occUnc, attrUnc, rate, ratio);
+        final FileWriter ceFileWriter = new FileWriter(base + "_ce.trigs");
+        final FileWriter hrFileWriter = new FileWriter(base + "_hr.trigs");
+        final FileWriter brFileWriter = new FileWriter(base + "_br.trigs");
+        final FileWriter oxFileWriter = new FileWriter(base + "_ox.trigs");
 
         // Add prefixes
         final String prefixes = "" +

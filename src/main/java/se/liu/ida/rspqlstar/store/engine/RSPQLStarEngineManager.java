@@ -21,6 +21,7 @@ public class RSPQLStarEngineManager {
     private Map<String, RSPQLStarQueryExecution> queries = new HashMap<>();
     private Map<String, RDFStarStream> streams = new HashMap<>();
     private StreamingDatasetGraph sdg;
+    private long applicationTime;
     final ExecutorService executor;
     final List<StreamFromFile> streamsFromFiles = new ArrayList<>();
 
@@ -42,7 +43,6 @@ public class RSPQLStarEngineManager {
         RSPQLStarEngine.register();
         ARQ.init();
         Probability.init();
-        Probability.init();
         executor = Executors.newFixedThreadPool(8);
         setApplicationTime(applicationTime);
         sdg = new StreamingDatasetGraph();
@@ -54,6 +54,7 @@ public class RSPQLStarEngineManager {
      */
     public void setApplicationTime(long applicationTime){
         TimeUtil.setOffset(new Date().getTime() - applicationTime);
+        this.applicationTime = applicationTime;
     }
 
     /**
@@ -82,12 +83,12 @@ public class RSPQLStarEngineManager {
 
         // execute query
         if(query.isSelectType()){
-            executor.submit(qexec.execContinuousSelect());
+            executor.submit(qexec.execContinuousSelect(applicationTime + 1));
         } else if(query.isConstructType()) {
             // create output stream
             //final RDFStarStream stream = registerStream(outputStream);
             //qexec.addContinuousListener(new ConstructStream(stream));
-            executor.submit(qexec.execContinuousConstruct());
+            executor.submit(qexec.execContinuousConstruct(applicationTime + 1));
         }
         return qexec;
     }

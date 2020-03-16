@@ -3,19 +3,15 @@ package se.liu.ida.rspqlstar.stream;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
-import org.apache.jena.rdf.model.RDFNode;
 import org.apache.log4j.Logger;
 import se.liu.ida.rspqlstar.store.dataset.RDFStarStreamElement;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 
-public class TimeWriterStream implements ContinuousListener {
-    private Logger logger = Logger.getLogger(TimeWriterStream.class);
+public class PerformanceWriterStream implements ContinuousListener {
+    private Logger logger = Logger.getLogger(PerformanceWriterStream.class);
     private boolean printHeader = true;
     private final PrintStream ps;
     private int skip = 0;
@@ -25,7 +21,7 @@ public class TimeWriterStream implements ContinuousListener {
      * Log timing information from a continuous SELECT query.
      * @param ps Print stream
      */
-    public TimeWriterStream(PrintStream ps){
+    public PerformanceWriterStream(PrintStream ps){
         this.ps = ps;
     }
 
@@ -33,7 +29,7 @@ public class TimeWriterStream implements ContinuousListener {
      * Log timing information from a continuous SELECT query.
      * @param fileName
      */
-    public TimeWriterStream(String fileName) throws FileNotFoundException {
+    public PerformanceWriterStream(String fileName) throws FileNotFoundException {
         this(new PrintStream(new File(fileName)));
     }
 
@@ -89,6 +85,7 @@ public class TimeWriterStream implements ContinuousListener {
             //logger.debug(qs);
         }
         final long executionTime = System.currentTimeMillis() - startedAt;
+        logger.debug("Executed in " + executionTime + " ms,  found " + counter + " results");
 
         ps.print(rate);
         ps.print(sep);
@@ -98,7 +95,6 @@ public class TimeWriterStream implements ContinuousListener {
         ps.print(sep);
         ps.print(executionTime);
         ps.println();
-        logger.debug("Executed in " + executionTime + " ms,  found " + counter + " results");
     }
 
     @Override

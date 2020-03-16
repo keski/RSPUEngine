@@ -19,7 +19,8 @@ public class ResultWriterStream implements ContinuousListener {
     private boolean printHeader = true;
     private final PrintStream ps;
     private int skip = 0;
-    private String sep = ",";
+    private String sep = "\t";
+    public boolean dropLiteralDatatype = true;
 
     /**
      * Log output from a continuous SELECT query.
@@ -75,16 +76,27 @@ public class ResultWriterStream implements ContinuousListener {
             final QuerySolution qs = rs.next();
             final Iterator<String> iter = rs.getResultVars().iterator();
             while(iter.hasNext()){
-                final RDFNode n = qs.get(iter.next());
-                final String s = n.isLiteral() ? n.asLiteral().getLexicalForm(): n.toString();
+                final String s = getString(qs.get(iter.next()));
                 ps.print(s);
                 if(iter.hasNext()) {
                     ps.print(sep);
                 }
             }
+            //logger.debug(qs);
             ps.println();
         }
+        final long executionTime = System.currentTimeMillis() - startedAt;
         logger.debug("Wrote " + counter + " results");
+        logger.debug("Executed in " + executionTime + " ms,  found " + counter + " results");
+    }
+
+    public String getString(RDFNode node){
+        if(dropLiteralDatatype){
+            if(node.isLiteral()){
+                return  node.asLiteral().getLexicalForm();
+            }
+        }
+        return node.toString();
     }
 
     @Override
