@@ -1,20 +1,20 @@
 // License issued by BayesFusion Licensing Server
 // This code must be executed before any other jSMILE object is created
 new smile.License(
-	"SMILE LICENSE a7e3e373 fd7392ec 1e81f99f " +
-	"THIS IS AN ACADEMIC LICENSE AND CAN BE USED " +
-	"SOLELY FOR ACADEMIC RESEARCH AND TEACHING, " +
-	"AS DEFINED IN THE BAYESFUSION ACADEMIC " +
-	"SOFTWARE LICENSING AGREEMENT. " +
-	"Serial #: 7zo6eqbrhl3lw72hwdylxr9fa " +
-	"Issued for: Robin Keskis\u00e4rkk\u00e4 (robin.keski@gmail.com) " +
-	"Academic institution: Link\u00f6ping University " +
-	"Valid until: 2020-04-23 " +
-	"Issued by BayesFusion activation server",
-	new byte[] {
-	74,45,7,-7,-52,-59,0,21,122,103,-17,-91,52,3,25,-102,
-	-121,-73,-22,-89,-32,88,-111,7,3,22,102,57,69,110,-92,66,
-	53,-63,-4,13,-64,28,4,60,-38,82,25,-51,-21,46,-122,-10,
-	-83,72,-116,-31,94,70,-52,-38,73,-47,-1,-123,98,17,-121,28
-	}
-);
+		"SMILE LICENSE 210b9bcf 7c746c5b e0368123 " +
+		"THIS IS AN ACADEMIC LICENSE AND CAN BE USED " +
+		"SOLELY FOR ACADEMIC RESEARCH AND TEACHING, " +
+		"AS DEFINED IN THE BAYESFUSION ACADEMIC " +
+		"SOFTWARE LICENSING AGREEMENT. " +
+		"Serial #: 5h77vqfhnibpiilqefmic8oe " +
+		"Issued for: Robin Keskis\u00e4rkkä (robin.keski@gmail.com) " +
+		"Academic institution: Link\u00f6ping University " +
+		"Valid until: 2020-10-17 " +
+		"Issued by BayesFusion activation server",
+		new byte[] {
+			32,-76,-12,113,-85,16,25,-41,91,114,-11,71,14,126,-47,-114,
+			-41,-117,-110,-92,92,64,-86,1,-104,-4,26,-46,98,-27,-30,38,
+			94,-74,-121,121,-8,-109,44,-71,46,-43,96,127,66,18,-100,11,
+			71,83,-48,-23,-20,125,-97,-107,60,19,95,5,123,87,-91,42
+		});
+
