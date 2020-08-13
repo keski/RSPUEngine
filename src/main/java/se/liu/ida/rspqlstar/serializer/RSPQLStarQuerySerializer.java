@@ -17,6 +17,7 @@ import se.liu.ida.rspqlstar.query.RSPQLStarQuery;
 import se.liu.ida.rspqlstar.util.MyFmtUtils;
 
 import java.io.OutputStream;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -369,12 +370,10 @@ public class RSPQLStarQuerySerializer implements RSPQLStarQueryVisitor {
 
     @Override
     public void visitComputedEveryForm(RSPQLStarQuery query) {
-        if(query.getComputedEvery() != null) {
-            out.print(" COMPUTED EVERY ");
-            out.print(query.getComputedEvery().toString());
-            out.print(" AS");
-            out.newline();
-        }
+        out.print(" COMPUTED EVERY ");
+        out.print(Duration.ofMillis(query.getComputedEvery()).toString());
+        out.print(" AS");
+        out.newline();
     }
 }
 

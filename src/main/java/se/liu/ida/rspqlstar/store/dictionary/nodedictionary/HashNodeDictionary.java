@@ -17,24 +17,33 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 
 public class HashNodeDictionary implements NodeDictionary {
-    final private ConcurrentHashMap<Long, Node> idToNode = new ConcurrentHashMap<>();
-    final private ConcurrentHashMap<Node, Long> nodeToId = new ConcurrentHashMap<>();
+    final private ConcurrentHashMap<Long, Node> idToNode = new ConcurrentHashMap<>(1024);
+    final private ConcurrentHashMap<Node, Long> nodeToId = new ConcurrentHashMap<>(1024);
+    final Object inputLock = new Object();
 
     @Override
     public Node getNode(long id) {
         return idToNode.get(id);
     }
 
+    /**
+     * This method must be support concurrency. Consider the case where multiple sources process the same node.
+     * @param node
+     * @return
+     */
     @Override
     public long addNodeIfNecessary(Node node) {
-        final Long id = getId(node);
-        if (id != null) {
-            return id;
+        synchronized(inputLock) {
+            final long id = getId(node);
+            if (id != -1) {
+                return id;
+            }
+            final long newId = IdFactory.nextNodeId();
+            final Node n = NodeWithIDFactory.createNode(node, newId);
+            idToNode.put(newId, n);
+            nodeToId.put(n, newId);
+            return newId;
         }
-
-        long newId = IdFactory.nextNodeId();
-        Node n = NodeWithIDFactory.createNode(node, newId);
-        return addNode(n, newId);
     }
 
     @Override
@@ -45,12 +54,11 @@ public class HashNodeDictionary implements NodeDictionary {
     }
 
     @Override
-    public Long getId(Node node) {
+    public long getId(Node node) {
         if (node instanceof Node_WithID) {
             return ((Node_WithID) node).getId();
-        } else {
-            return nodeToId.get(NodeWithIDFactory.createNode(node));
         }
+        return nodeToId.getOrDefault(NodeWithIDFactory.createNode(node), -1l);
     }
 
     @Override

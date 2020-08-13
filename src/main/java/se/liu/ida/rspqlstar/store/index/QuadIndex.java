@@ -69,11 +69,8 @@ public class QuadIndex implements StreamRDF {
         final Node S = quad.getSubject();
         final Node P = quad.getPredicate();
         final Node O = quad.getObject();
-
         final long g, s, p, o;
         g = G == null ? DEFAULT_GRAPH_ID: nd.addNodeIfNecessary(G);
-
-        p = nd.addNodeIfNecessary(P);
 
         if (S instanceof Node_Triple) {
             IdBasedQuad q = add(new Quad(G, ((Node_Triple) S).get()));
@@ -81,7 +78,7 @@ public class QuadIndex implements StreamRDF {
         } else {
             s = nd.addNodeIfNecessary(S);
         }
-
+        p = nd.addNodeIfNecessary(P);
         if (O instanceof Node_Triple) {
             IdBasedQuad q = add(new Quad(G, ((Node_Triple) O).get()));
             o = getIdForIDBasedTriple(q.getIdBasedTriple());

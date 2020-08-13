@@ -12,16 +12,18 @@ import se.liu.ida.rspqlstar.stream.ContinuousListener;
 import se.liu.ida.rspqlstar.util.TimeUtil;
 
 import java.io.PrintStream;
+import java.sql.Time;
 import java.util.ArrayList;
 import java.util.List;
 
 public class RSPQLStarQueryExecution extends QueryExecutionBase {
-    private final Logger logger = Logger.getLogger(RSPQLStarQuery.class);
+    private final Logger logger = Logger.getLogger(RSPQLStarQueryExecution.class);
     protected RSPQLStarQuery query;
     private QueryIterator queryIterator = null;
     public StreamingDatasetGraph sdg;
     private boolean closed;
     private boolean stop = false;
+    public boolean isRunning = true;
     private ContinuousListener listener = null;
 
     public RSPQLStarQueryExecution(RSPQLStarQuery query, StreamingDatasetGraph sdg){
@@ -31,7 +33,6 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
         if(!sdg.isPreparedForQuery(query)){
             sdg.initForQuery(query);
         }
-
     }
 
     public RSPQLStarQueryExecution(RSPQLStarQuery query, Dataset dataset) {
@@ -48,28 +49,37 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
         if (!query.isSelectType()) {
             throw new QueryExecException("Wrong query type: " + query);
         } else {
-            final ResultSet rs = execResultSet();
-            return new ResultSetCheckCondition(rs, this);
+            try {
+                final ResultSet rs = execResultSet();
+                return new ResultSetCheckCondition(rs, this);
+            } catch (Exception e){
+                logger.error(e.getMessage());
+                throw e;
+            }
         }
     }
 
-    public Runnable execContinuousConstruct(long firstExecution) {
+    /**
+     * TODO: Update according to execContinuousSelect
+     */
+    public Runnable execContinuousConstruct() {
         final Runnable r = () -> {
-            long nextExecution = firstExecution;
+            long nextExecution = sdg.getTime();
             while(!stop) {
+                final long sleep = nextExecution - TimeUtil.getTime();
+                TimeUtil.silentSleep(sleep);
+                logger.info(String.format("Executing at: %s (sleep: %s)", nextExecution, sleep));
                 final RSPQLStarQueryExecution exec = new RSPQLStarQueryExecution(query, sdg);
-                delay(nextExecution);
+                // execute
                 sdg.setTime(nextExecution);
-                final long t0 = System.currentTimeMillis();
-
-                // Execute
                 final Dataset ds = DatasetFactory.create();
                 exec.execConstructDataset(ds);
-                logger.debug(query.getOutputStream() + " empty? " + ds.isEmpty());
-                listener.push(ds, t0);
+                // push
+                listener.push(ds, TimeUtil.getNanoTime());
                 exec.close();
-                nextExecution += query.getComputedEvery().toMillis();
+                nextExecution += query.getComputedEvery();
             }
+            isRunning = false;
         };
         return r;
     }
@@ -93,27 +103,28 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
         queryIterator = getPlan().iterator();
     }
 
-    protected void execInit() {
-        // reset iterator?
-    }
+    protected void execInit() { }
 
     /**
      * Run periodic execution of query.
      */
-    public Runnable execContinuousSelect(long firstExecution) {
+    public Runnable execContinuousSelect() {
         final Runnable r = () -> {
-            long nextExecution = firstExecution;
-            while(!stop) {
-                delay(nextExecution);
-                logger.info("Executing at: " + nextExecution);
-                final RSPQLStarQueryExecution exec = new RSPQLStarQueryExecution(query, sdg);
-                sdg.setTime(nextExecution);
-
-                final long t0 = System.currentTimeMillis();
-                listener.push(exec.execSelect(), t0);
-                exec.close();
-
-                nextExecution += query.getComputedEvery().toMillis();
+            try {
+                long nextExecution = sdg.getTime();
+                while (!stop) {
+                    final long sleep = nextExecution - TimeUtil.getTime();
+                    TimeUtil.silentSleep(sleep);
+                    logger.info(String.format("Wait for execution: %s ms", sleep));
+                    sdg.setTime(nextExecution);
+                    final RSPQLStarQueryExecution exec = new RSPQLStarQueryExecution(query, sdg);
+                    listener.push(exec.execSelect(), TimeUtil.getNanoTime());
+                    exec.close();
+                    nextExecution += query.getComputedEvery();
+                }
+                isRunning = false;
+            } catch (Exception e){
+                logger.error(e.getMessage());
             }
         };
         return r;
@@ -121,20 +132,6 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
 
     public void stop(){
         stop = true;
-    }
-
-    /**
-     * Pause execution until next_execution time.
-     *
-     * @param next_execution
-     */
-    public void delay(long next_execution){
-        long sleep = next_execution - TimeUtil.getTime().getTime();
-        if(sleep > 0){
-            TimeUtil.silentSleep(sleep);
-        } else {
-            logger.warn("Overload! No time to execute!");
-        }
     }
 
     public void setListener(ContinuousListener listener){

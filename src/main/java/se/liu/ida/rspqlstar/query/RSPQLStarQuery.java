@@ -18,7 +18,7 @@ import java.util.*;
 
 public class RSPQLStarQuery extends Query {
     private String outputStream = null;
-    private Duration computedEvery = null;
+    private long computedEvery = 500; // default execution is every 500 ms
     private Map<String, NamedWindow> namedWindows = new HashMap<>();
 
 
@@ -44,14 +44,14 @@ public class RSPQLStarQuery extends Query {
     }
 
     public void setComputedEvery(String interval){
-        computedEvery = stringAsDuration(interval);
+        computedEvery = stringAsDuration(interval).toMillis();
     }
 
     public String getOutputStream() {
         return outputStream;
     }
 
-    public Duration getComputedEvery() {
+    public long getComputedEvery() {
         return computedEvery;
     }
 
@@ -113,6 +113,6 @@ public class RSPQLStarQuery extends Query {
     }
 
     public int hashCode(){
-        return 1;
+        return toString().hashCode();
     }
 }

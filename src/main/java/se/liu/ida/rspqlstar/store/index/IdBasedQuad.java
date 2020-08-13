@@ -1,5 +1,10 @@
 package se.liu.ida.rspqlstar.store.index;
 
+import org.apache.jena.graph.Node;
+import org.apache.jena.sparql.core.Quad;
+import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.NodeDictionary;
+import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.NodeDictionaryFactory;
+
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -12,12 +17,21 @@ public class IdBasedQuad implements Comparable<IdBasedQuad>, Serializable {
     final public long subject;
     final public long predicate;
     final public long object;
+    final static private NodeDictionary nd = NodeDictionaryFactory.get();
 
     public IdBasedQuad(long graph, long subject, long predicate, long object) {
         this.graph = graph;
         this.subject = subject;
         this.predicate = predicate;
         this.object = object;
+    }
+
+    public IdBasedQuad(Quad q) {
+        this(nd.getId(q.getGraph()), nd.getId(q.getSubject()), nd.getId(q.getPredicate()), nd.getId(q.getObject()));
+    }
+
+    public IdBasedQuad(Node g, Node s, Node p, Node o) {
+        this(nd.getId(g), nd.getId(s), nd.getId(p), nd.getId(o));
     }
 
     public String toString() {

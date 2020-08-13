@@ -25,12 +25,12 @@ public class IdBasedQuadPatternIterator implements Iterator<SolutionMapping> {
     private SolutionMapping currentInputMapping = null;
     private QuadStarPattern currentQueryPattern;
     private Iterator<? extends IdBasedQuad> currentMatches;
-    private DatasetGraphStar dsg;
+    private DatasetGraphStar ds;
 
     public IdBasedQuadPatternIterator(QuadStarPattern pattern, Iterator<SolutionMapping> solMapIter, ExecutionContext execCxt) {
         this.pattern = pattern;
         this.input = solMapIter;
-        this.dsg = ((StreamingDatasetGraph) execCxt.getDataset()).getActiveDataset();
+        this.ds = ((StreamingDatasetGraph) execCxt.getDataset()).getActiveDataset();
     }
 
     public boolean hasNext() {
@@ -39,13 +39,12 @@ public class IdBasedQuadPatternIterator implements Iterator<SolutionMapping> {
             if (!input.hasNext() || !pattern.isMatchable()) {
                 return false;
             }
-
             currentInputMapping = input.next();
             currentQueryPattern = substitute(pattern, currentInputMapping);
 
             // If tp is concrete, contains is invoked
             if (currentQueryPattern.isConcrete()) {
-                boolean match = dsg.contains(currentQueryPattern);
+                boolean match = ds.contains(currentQueryPattern);
                 if (match) {
                     currentMatches = Collections.singleton(new IdBasedQuad(
                             currentQueryPattern.graph.asKey().id,
@@ -56,7 +55,7 @@ public class IdBasedQuadPatternIterator implements Iterator<SolutionMapping> {
                     currentMatches = Collections.<IdBasedQuad>emptyList().iterator();
                 }
             } else {
-                currentMatches = dsg.find(currentQueryPattern);
+                currentMatches = ds.idBasedFind(currentQueryPattern);
             }
         }
         return true;

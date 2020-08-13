@@ -7,7 +7,9 @@ import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.riot.ResultSetMgr;
 import org.apache.jena.riot.resultset.ResultSetLang;
 import org.apache.log4j.Logger;
+import se.liu.ida.rspqlstar.store.dataset.DatasetGraphStar;
 import se.liu.ida.rspqlstar.store.dataset.RDFStarStreamElement;
+import se.liu.ida.rspqlstar.util.TimeUtil;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -46,7 +48,12 @@ public class ResultWriterStream implements ContinuousListener {
     }
 
     @Override
-    public void push(ResultSet rs, long startedAt) {
+    public void push(Dataset ds, long executionTime) {
+        throw new IllegalStateException("Not supported");
+    }
+
+    @Override
+    public void push(ResultSet rs, long executionTime) {
         int counter = 0;
         if(printHeader){
             printHeader = false;
@@ -60,14 +67,15 @@ public class ResultWriterStream implements ContinuousListener {
             ps.println();
         }
 
-        // skip results?
+        // skip results
         if(skip > 0) {
             while(rs.hasNext()) {
                 rs.next();
                 counter++;
             }
             skip--;
-            logger.info("Skip " + counter + " results ");
+            final long duration = TimeUtil.getTime() - executionTime;
+            logger.debug(String.format("Skipped %s results, executed in %s ms", counter, duration));
             return;
         }
 
@@ -85,9 +93,8 @@ public class ResultWriterStream implements ContinuousListener {
             //logger.debug(qs);
             ps.println();
         }
-        final long executionTime = System.currentTimeMillis() - startedAt;
-        logger.debug("Wrote " + counter + " results");
-        logger.debug("Executed in " + executionTime + " ms,  found " + counter + " results");
+        final long duration = TimeUtil.getTime() - executionTime;
+        logger.debug(String.format("Wrote %s results, executed in %s ms", counter, duration));
     }
 
     public String getString(RDFNode node){
@@ -97,11 +104,6 @@ public class ResultWriterStream implements ContinuousListener {
             }
         }
         return node.toString();
-    }
-
-    @Override
-    public void push(Dataset ds, long startedAt) {
-        throw new IllegalStateException("Not implemented");
     }
 
     @Override

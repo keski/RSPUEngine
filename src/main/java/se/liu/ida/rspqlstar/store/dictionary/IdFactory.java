@@ -40,11 +40,12 @@ public class IdFactory {
     /**
      * Returns true if the provided id is a reference triple id.
      *
+     * TODO: Null value from node dictionary is -1. Will this work if a dummy triple node is bound to a var?
      * @param id
      * @return
      */
     public static boolean isReferenceId(long id) {
-        return (id >>> 62) == 2;
+        return (id >>> 63) == 1;
     }
 
     /**

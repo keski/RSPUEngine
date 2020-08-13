@@ -20,8 +20,8 @@ public class HashReferenceDictionary implements ReferenceDictionary {
 
     @Override
     public long addIfNecessary(IdBasedTriple idBasedTriple) {
-        final Long id = getId(idBasedTriple);
-        if (id != null) {
+        final long id = getId(idBasedTriple);
+        if (id != -1) {
             return id;
         }
         return addNode(idBasedTriple);
@@ -35,8 +35,8 @@ public class HashReferenceDictionary implements ReferenceDictionary {
     }
 
     @Override
-    public Long getId(IdBasedTriple idBasedTriple) {
-        return nodeTripleToId.get(idBasedTriple);
+    public long getId(IdBasedTriple idBasedTriple) {
+        return nodeTripleToId.getOrDefault(idBasedTriple, -1l);
     }
 
     @Override

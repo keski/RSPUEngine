@@ -1,5 +1,6 @@
 package se.liu.ida.rspqlstar.store.engine.main.pattern;
 
+import org.apache.jena.graph.Node;
 import org.apache.jena.reasoner.IllegalParameterException;
 import se.liu.ida.rspqlstar.store.index.IdBasedQuad;
 import se.liu.ida.rspqlstar.store.index.Field;

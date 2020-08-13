@@ -3,6 +3,7 @@ package se.liu.ida.rspqlstar.store.dataset;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Node_Triple;
+import org.apache.jena.graph.Triple;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.sparql.core.Quad;
 import org.apache.log4j.Logger;
@@ -11,12 +12,9 @@ import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.NodeDictionaryFactor
 import se.liu.ida.rspqlstar.store.dictionary.referencedictionary.ReferenceDictionary;
 import se.liu.ida.rspqlstar.store.dictionary.referencedictionary.ReferenceDictionaryFactory;
 import se.liu.ida.rspqlstar.store.engine.main.iterator.DecodingQuadsIterator;
-import se.liu.ida.rspqlstar.store.index.IdBasedQuad;
 import se.liu.ida.rspqlstar.store.engine.main.pattern.QuadPatternBuilder;
 import se.liu.ida.rspqlstar.store.engine.main.pattern.QuadStarPattern;
-import se.liu.ida.rspqlstar.store.index.Field;
-import se.liu.ida.rspqlstar.store.index.Index;
-import se.liu.ida.rspqlstar.store.index.TreeIndex;
+import se.liu.ida.rspqlstar.store.index.*;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -28,15 +26,15 @@ import java.util.Iterator;
  */
 
 public class DatasetGraphStar extends AbstractDatasetGraph {
-    final private Logger logger = Logger.getLogger(DatasetGraphStar.class);
-    final public Index GSPO;
-    final public Index GPOS;
-    final public Index GOSP;
-    final public Index SPOG;
-    final public Index POSG;
-    final public Index OSPG;
-    final NodeDictionary nd = NodeDictionaryFactory.get();
-    final ReferenceDictionary refT = ReferenceDictionaryFactory.get();
+    private final Logger logger = Logger.getLogger(DatasetGraphStar.class);
+    private final Index GSPO;
+    private final Index GPOS;
+    private final Index GOSP;
+    private final Index SPOG;
+    private final Index POSG;
+    private final Index OSPG;
+    private final NodeDictionary nd = NodeDictionaryFactory.get();
+    private final ReferenceDictionary refT = ReferenceDictionaryFactory.get();
 
     public DatasetGraphStar() {
         GSPO = new TreeIndex(Field.G, Field.S, Field.P, Field.O);
@@ -47,6 +45,18 @@ public class DatasetGraphStar extends AbstractDatasetGraph {
         OSPG = new TreeIndex(Field.O, Field.S, Field.P, Field.G);
     }
 
+    public boolean contains(Quad q) {
+        return contains(q.getGraph(), q.getSubject(), q.getPredicate(), q.getObject());
+    }
+
+    public boolean contains(Node g, Node s, Node p, Node o) {
+        final long gId = getId(g);
+        final long sId = getId(s);
+        final long pId = getId(p);
+        final long oId = getId(o);
+        return contains(new IdBasedQuad(gId, sId, pId, oId));
+    }
+
     public boolean contains(QuadStarPattern pattern) {
         return GSPO.contains(pattern);
     }
@@ -55,10 +65,21 @@ public class DatasetGraphStar extends AbstractDatasetGraph {
         return GSPO.contains(idBasedQuad);
     }
 
+    public long getId(Node node){
+        if(node instanceof Node_Triple){
+            final Triple t = ((Node_Triple) node).get();
+            final long s = getId(t.getSubject());
+            final long p = getId(t.getPredicate());
+            final long o = getId(t.getObject());
+            return refT.getId(new IdBasedTriple(s, p, o));
+        }
+        return nd.getId(node);
+    }
+
     @Override
     public Iterator<Quad> find(Node g, Node s, Node p, Node o) {
-        final QuadStarPattern quadPattern = getQuadPattern(g, s, p, o);
-        return new DecodingQuadsIterator(find(quadPattern), quadPattern);
+        final QuadStarPattern quadPattern = QuadPatternBuilder.createQuadPattern(g, s, p, o);
+        return new DecodingQuadsIterator(idBasedFind(quadPattern), quadPattern);
     }
 
     @Override
@@ -69,7 +90,7 @@ public class DatasetGraphStar extends AbstractDatasetGraph {
 
     @Override
     public Graph getDefaultGraph() {
-        //logger.debug("Accessing default graph of DatasetGraphStar, was this intentional? Returning empty graph.");
+        logger.debug("Accessing default graph of DatasetGraphStar, was this intentional? Returning empty graph.");
         return ModelFactory.createDefaultModel().getGraph();
     }
 
@@ -85,28 +106,27 @@ public class DatasetGraphStar extends AbstractDatasetGraph {
         final Node object = quad.getObject();
 
         final long g = nd.addNodeIfNecessary(graph);
+        final long s = addNestedQuad(graph, subject);
         final long p = nd.addNodeIfNecessary(predicate);
-
-        final long s;
-        if (subject instanceof Node_Triple) {
-            final Quad q = new Quad(graph, ((Node_Triple) subject).get());
-            IdBasedQuad idBasedQuad = addQuad(q);
-            s = refT.addIfNecessary(idBasedQuad.getIdBasedTriple());
-        } else {
-            s = nd.addNodeIfNecessary(subject);
-        }
-
-        final long o;
-        if (object instanceof Node_Triple) {
-            IdBasedQuad idBasedQuad = addQuad(new Quad(graph, ((Node_Triple) object).get()));
-            o = refT.addIfNecessary(idBasedQuad.getIdBasedTriple());
-        } else {
-            o = nd.addNodeIfNecessary(object);
-        }
+        final long o = addNestedQuad(graph, object);
 
         final IdBasedQuad idBasedQuad = new IdBasedQuad(g, s, p, o);
         addToIndex(idBasedQuad);
         return idBasedQuad;
+    }
+
+    /**
+     * Add potentially nested quad.
+     * @param graph
+     * @param node
+     * @return
+     */
+    public long addNestedQuad(Node graph, Node node){
+        if (node instanceof Node_Triple) {
+            final IdBasedQuad idBasedQuad = addQuad(new Quad(graph, ((Node_Triple) node).get()));
+            return refT.addIfNecessary(idBasedQuad.getIdBasedTriple());
+        }
+        return nd.addNodeIfNecessary(node);
     }
 
     public void addToIndex(IdBasedQuad idBasedQuad) {
@@ -122,13 +142,18 @@ public class DatasetGraphStar extends AbstractDatasetGraph {
         return GSPO.iterateAll();
     }
 
+    public Iterator<IdBasedQuad> idBasedFind(Node g, Node s, Node p, Node o) {
+        final QuadStarPattern pattern = QuadPatternBuilder.createQuadPattern(g, s, p, o);
+        return idBasedFind(pattern);
+    }
+
     /**
      * Identifies the correct index to query and returns an iterator over the quad pattern.
      *
      * @param pattern
      * @return
      */
-    public Iterator<IdBasedQuad> find(QuadStarPattern pattern) {
+    public Iterator<IdBasedQuad> idBasedFind(QuadStarPattern pattern) {
         if (!pattern.isMatchable()) return Collections.emptyIterator();
 
         final boolean g = pattern.graph.isConcrete();
@@ -136,9 +161,8 @@ public class DatasetGraphStar extends AbstractDatasetGraph {
         final boolean p = pattern.predicate.isConcrete();
         final boolean o = pattern.object.isConcrete();
 
-        // This order is not based on anything in particular
-        // GSP, GOS, GPO, GS, GO, GP, G,
-        // SP, OS, PO, S, O, P
+        // This order is not based on anything concrete:
+        // GSP, GOS, GPO, GS, GO, GP, G, SP, OS, PO, S, O, P
 
         final Iterator<IdBasedQuad> iter;
         if (g && s && p) {
@@ -154,7 +178,7 @@ public class DatasetGraphStar extends AbstractDatasetGraph {
         } else if (g && p) {
             iter = GPOS.iterator(pattern);
         } else if (g) {
-            iter = GSPO.iterator(pattern); // its probably less selective than this...
+            iter = GSPO.iterator(pattern);
         } else if (s && p && o) {
             iter = SPOG.iterator(pattern);
         } else if (o && s) {
@@ -171,19 +195,13 @@ public class DatasetGraphStar extends AbstractDatasetGraph {
             iter = GSPO.iterateAll();
         }
 
-        return iter;
-        // for quad patterns where the same var appears more than once, we need
-        // to filter the results
-        //return new FilteredQuadIterator(iter, pattern);
-    }
+        if(!iter.hasNext()) {
+            logger.error("\n" + pattern + " no match");
+        }
 
-    private QuadStarPattern getQuadPattern(Node g, Node s, Node p, Node o) {
-        QuadPatternBuilder builder = new QuadPatternBuilder();
-        builder.setGraph(g);
-        builder.setSubject(s);
-        builder.setPredicate(p);
-        builder.setObject(o);
-        return builder.createQuadPattern();
+        return iter;
+        // TODO: for quad patterns where the same var appears more than once, we need  to filter the results
+        //return new FilteredQuadIterator(iter, pattern);
     }
 
     public String toString(){

@@ -21,11 +21,11 @@ import java.util.Iterator;
 
 
 public class RDFStarStreamElement implements StreamRDF {
-    public Index index;
-    public long time;
+    private Index index;
+    private long time;
     public static Node timeProperty = NodeFactory.createURI("http://www.w3.org/ns/prov#generatedAtTime");
-    final NodeDictionary nd = NodeDictionaryFactory.get();
-    final ReferenceDictionary refT = ReferenceDictionaryFactory.get();
+    private NodeDictionary nd = NodeDictionaryFactory.get();
+    private ReferenceDictionary refT = ReferenceDictionaryFactory.get();
 
     public RDFStarStreamElement(){
         this(0);
@@ -38,6 +38,14 @@ public class RDFStarStreamElement implements StreamRDF {
     public RDFStarStreamElement(long time){
         this.time = time;
         index = new HashIndex(Field.G, Field.S, Field.P, Field.O);
+    }
+
+    public void setTime(long time){
+        this.time = time;
+    }
+
+    public long getTime(){
+        return time;
     }
 
     @Override
@@ -54,41 +62,26 @@ public class RDFStarStreamElement implements StreamRDF {
     }
 
     private IdBasedQuad addQuad(Quad quad) {
-        Node graph = quad.getGraph();
-        if(graph == null){
-            if(quad.getPredicate().equals(timeProperty)){
-                time = ((XSDDateTime) quad.getObject().getLiteral().getValue()).asCalendar().getTimeInMillis();
-            }
+        final Node graph = quad.getGraph() == null ? Quad.defaultGraphNodeGenerated : quad.getGraph();
+        if(graph == Quad.defaultGraphNodeGenerated && quad.getPredicate().equals(timeProperty)) {
+            time = ((XSDDateTime) quad.getObject().getLiteral().getValue()).asCalendar().getTimeInMillis();
         }
-        graph = graph == null ? Quad.defaultGraphNodeGenerated : graph;
-
-        final Node subject = quad.getSubject();
-        final Node predicate = quad.getPredicate();
-        final Node object = quad.getObject();
-
         final long g = nd.addNodeIfNecessary(graph);
-        final long p = nd.addNodeIfNecessary(predicate);
-
-        final long s;
-        if (subject instanceof Node_Triple) {
-            final Quad q = new Quad(graph, ((Node_Triple) subject).get());
-            final IdBasedQuad idBasedQuad = addQuad(q);
-            s = refT.addIfNecessary(idBasedQuad.getIdBasedTriple());
-        } else {
-            s = nd.addNodeIfNecessary(subject);
-        }
-
-        final long o;
-        if (object instanceof Node_Triple) {
-            final IdBasedQuad idBasedQuad = addQuad(new Quad(graph, ((Node_Triple) object).get()));
-            o = refT.addIfNecessary(idBasedQuad.getIdBasedTriple());
-        } else {
-            o = nd.addNodeIfNecessary(object);
-        }
-
+        final long s = addIfNecessary(quad.getSubject(), graph);
+        final long p = nd.addNodeIfNecessary(quad.getPredicate());
+        final long o = addIfNecessary(quad.getObject(), graph);
         final IdBasedQuad idBasedQuad = new IdBasedQuad(g, s, p, o);
         addToIndex(idBasedQuad);
         return idBasedQuad;
+    }
+
+    private long addIfNecessary(Node node, Node graph){
+        if (node instanceof Node_Triple) {
+            final IdBasedQuad idBasedQuad = addQuad(new Quad(graph, ((Node_Triple) node).get()));
+            return refT.addIfNecessary(idBasedQuad.getIdBasedTriple());
+        } else {
+            return nd.addNodeIfNecessary(node);
+        }
     }
 
     public void addToIndex(IdBasedQuad idBasedQuad) {

@@ -14,16 +14,20 @@ import java.util.Arrays;
 
 public class Generator {
     // Use reference time for streams: 1582757970590 -> 2020-02-26T23:59
-    public static final long referenceTime = 1582757970590l;
+    public static final long referenceTime = 1582757970000l;
     public static final float hrLimit = 100f;
     public static final int brLimit = 30;
     public static final int oxLimit = 90;
     private static final Logger logger = Logger.getLogger(Generator.class);
 
+    public static void main(String[] args) throws IOException {
+        run(10000, new int[]{1}, new double[]{.2}, new double[]{.2});
+    }
+
     public static void run(int duration, int[] rates, double[] occUncList, double[] attrUncList) throws IOException {
         BayesianNetwork.init();
         final String root = new File("").getAbsolutePath() + "/";
-        final Network net = BayesianNetwork.loadNetwork("", root + "experiments/medical-generator.bn");
+        final Network net = BayesianNetwork.loadNetwork("http://bn", root + "experiments/medical.bn");
         net.updateBeliefs();
 
         final int total = rates.length * (occUncList.length + attrUncList.length);
@@ -54,9 +58,6 @@ public class Generator {
      */
     public static void generate(double occUnc, double attrUnc, int rate, int ratio, int duration, Network net) throws IOException {
         net.clearAllEvidence();
-        net.setNodeDefinition("VHighHeartRate", new double[]{1-occUnc, occUnc, occUnc, 1-occUnc});
-        net.setNodeDefinition("VHighBreathingRate", new double[]{1-occUnc, occUnc, occUnc, 1-occUnc});
-        net.setNodeDefinition("VLowOxygenSaturation", new double[]{1-occUnc, occUnc, occUnc, 1-occUnc});
         net.updateBeliefs();
 
         // Prior probability
@@ -65,7 +66,7 @@ public class Generator {
 
         // Distributions for sampling attribute values
         final double z = pToZ(attrUnc);
-        final double hrSd = hrLimit * 0.01;
+        final double hrSd = hrLimit * 0.01; // standard deviation is set to 10% of threshold
         final NormalDistribution hrAbove = new NormalDistribution(hrLimit + z * hrSd, hrSd);
         final NormalDistribution hrBelow = new NormalDistribution(hrLimit - z * hrSd, hrSd);
         final double brSd = brLimit * 0.01;
@@ -97,6 +98,7 @@ public class Generator {
 
         long time = referenceTime;
         int counter = 0;
+        float increment = 1000f/rate;
         for(int i=0; i < duration/1000; i++){
             for(int j=0; j < rate; j++) {
                 // Sample CE (occurred or not)
@@ -105,33 +107,45 @@ public class Generator {
                 net.updateBeliefs();
 
                 // Time and feature of interest
-                final long t = time + j;
+                final long t = time + (int)(j * increment);
                 final String foi = "person" + counter;
 
-                // Ground data
+                // Ground truth (COPDExacerbation occurred or not)
                 final COPDExacerbation ce = new COPDExacerbation(ceOcc, t, "ce" + counter, foi);
                 ceFileWriter.write(ce.toString().replaceAll("\\s+", " ") + "\n");
 
                 // Find probabilities for dependent events
-                final double vhrProb = net.getNodeValue("VHighHeartRate")[0];
-                final double vbrProb = net.getNodeValue("VHighBreathingRate")[0];
-                final double voxProb = net.getNodeValue("VLowOxygenSaturation")[0];
+                final double hrProb = net.getNodeValue("HighHeartRate")[0];
+                final double brProb = net.getNodeValue("HighBreathingRate")[0];
+                final double oxProb = net.getNodeValue("LowOxygenSaturation")[0];
+
+                // Occurrence uncertainty sampler
+                final BinomialDistribution occUncSampler = new BinomialDistribution(1, 1-occUnc);
 
                 for(int x=0; x < ratio; x++) {
-                    // Sample truth values
-                    final int hrOcc = new BinomialDistribution(1, vhrProb).sample();
-                    final int brOcc = new BinomialDistribution(1, vbrProb).sample();
-                    final int oxOcc = new BinomialDistribution(1, voxProb).sample();
+                    // Reference truth values (no added uncertainty yet!)
+                    final int hrOcc = new BinomialDistribution(1, hrProb).sample();
+                    final int brOcc = new BinomialDistribution(1, brProb).sample();
+                    final int oxOcc = new BinomialDistribution(1, oxProb).sample();
 
-                    // Likelihood of the "derived" event types (likelihood)
-                    final double pHr = hrOcc == 1 ? 1 - occUnc : occUnc;
-                    final double pBr = brOcc == 1 ? 1 - occUnc : occUnc;
-                    final double pOx = oxOcc == 1 ? 1 - occUnc : occUnc;
+                    // Add occurrence uncertainty
+                    final double pHr = addOccurrenceUncertainty(hrOcc, occUnc, occUncSampler);
+                    final double pBr = addOccurrenceUncertainty(brOcc, occUnc, occUncSampler);
+                    final double pOx = addOccurrenceUncertainty(oxOcc, occUnc, occUncSampler);
 
-                    // Sampled values
-                    final double hrValue = hrOcc == 1 ? hrAbove.sample() : hrBelow.sample();
-                    final double brValue = brOcc == 1 ? brAbove.sample() : brBelow.sample();
-                    final double oxValue = oxOcc == 1 ? oxBelow.sample() : oxAbove.sample();
+                    // Physical parameter values
+                    final double hrValue;
+                    final double brValue;
+                    final double oxValue;
+                    if(attrUnc == 0){
+                        hrValue = hrOcc == 1 ? hrLimit + 1 : hrLimit - 1;
+                        brValue = brOcc == 1 ? brLimit + 1 : brLimit - 1;
+                        oxValue = oxOcc == 1 ? oxLimit - 1 : oxLimit + 1;
+                    } else {
+                        hrValue = hrOcc == 1 ? hrAbove.sample() : hrBelow.sample();
+                        brValue = brOcc == 1 ? brAbove.sample() : brBelow.sample();
+                        oxValue = oxOcc == 1 ? oxBelow.sample() : oxAbove.sample();
+                    }
 
                     // Create events
                     final String eventSuffix = "_" + x;
@@ -154,6 +168,16 @@ public class Generator {
         hrFileWriter.close();
         brFileWriter.close();
         oxFileWriter.close();
+    }
+
+    private static double addOccurrenceUncertainty(int occ, double occUnc, BinomialDistribution sampler) {
+        // add uncertainty
+        double p = occ == 1 ? 1 - occUnc : occUnc;
+        // if 1, keep original, otherwise flip observation
+        if(sampler.sample() == 0) {
+            return 1 - p;
+        }
+        return p;
     }
 
 

@@ -12,6 +12,7 @@ import org.apache.jena.sparql.algebra.op.*;
 import org.apache.jena.sparql.expr.Expr;
 import org.apache.jena.sparql.syntax.*;
 import org.apache.jena.sparql.util.Context;
+import org.apache.log4j.Logger;
 import se.liu.ida.rspqlstar.algebra.op.OpWindow;
 import se.liu.ida.rspqlstar.syntax.ElementNamedWindow;
 import se.liu.ida.rspqlstar.syntax.ElementSubRSPQLStarQuery;
@@ -22,6 +23,7 @@ import java.util.Iterator;
 import java.util.List;
 
 public class RSPQLStarAlgebraGenerator extends AlgebraGenerator {
+    private final Logger logger = Logger.getLogger(RSPQLStarAlgebraGenerator.class);
     private boolean fixedFilterPosition;
     public static Node timePredicate;
     private Context context;
@@ -40,6 +42,7 @@ public class RSPQLStarAlgebraGenerator extends AlgebraGenerator {
     public Op compile(Query query) {
         Op op = compile(query.getQueryPattern());
         op = this.compileModifiers(query, op);
+        //logger.debug("\n" + op);
         return op;
     }
 

@@ -20,8 +20,8 @@ public class Probability {
         FunctionRegistry.get().put(ns + "lessThanOrEqual", Probability.lessThanOrEqual);
         FunctionRegistry.get().put(ns + "greaterThanOrEqual", Probability.greaterThanOrEqual);
         FunctionRegistry.get().put(ns + "between", Probability.between);
-        FunctionRegistry.get().put(ns + "sum", Probability.sum);
-        FunctionRegistry.get().put(ns + "difference", Probability.difference);
+        FunctionRegistry.get().put(ns + "add", Probability.add);
+        FunctionRegistry.get().put(ns + "subtract", Probability.subtract);
     }
 
     public static FunctionFactory lessThan = s -> new FunctionBase2() { // less than or equal
@@ -60,17 +60,17 @@ public class Probability {
     };
 
 
-    public static FunctionFactory sum = s -> new FunctionBase2() {
+    public static FunctionFactory add = s -> new FunctionBase2() {
         @Override
         public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            return Probability.sum(nv1, nv2);
+            return Probability.add(nv1, nv2);
         }
     };
 
-    public static FunctionFactory difference = s -> new FunctionBase2() {
+    public static FunctionFactory subtract = s -> new FunctionBase2() {
         @Override
         public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            return Probability.difference(nv1, nv2);
+            return Probability.subtract(nv1, nv2);
         }
     };
 
@@ -80,7 +80,7 @@ public class Probability {
      * @param nv2
      * @return
      */
-    private static NodeValue difference(NodeValue nv1, NodeValue nv2){
+    private static NodeValue subtract(NodeValue nv1, NodeValue nv2){
         final Object v1 = getLiteral(nv1);
         final Object v2 = getLiteral(nv2);
 
@@ -88,11 +88,11 @@ public class Probability {
         if(v1 instanceof Double && v2 instanceof Double){
             nv = NodeValue.makeDecimal((double) v1 - (double) v2);
         } else if(v1 instanceof Double){
-            throw new ExprEvalException("difference: invalid order of arguments");
+            throw new ExprEvalException("subtract: invalid order of arguments");
         } else if(v2 instanceof RealDistribution){
-            nv = difference((RealDistribution) v1, (RealDistribution) v2);
+            nv = subtract((RealDistribution) v1, (RealDistribution) v2);
         } else {
-            nv = difference((RealDistribution) v1, (double) v2);
+            nv = subtract((RealDistribution) v1, (double) v2);
         }
         return nv;
     }
@@ -103,7 +103,7 @@ public class Probability {
      * @param nv2
      * @return
      */
-    private static NodeValue sum(NodeValue nv1, NodeValue nv2){
+    private static NodeValue add(NodeValue nv1, NodeValue nv2){
         final Object v1 = getLiteral(nv1);
         final Object v2 = getLiteral(nv2);
 
@@ -111,11 +111,11 @@ public class Probability {
         if(v1 instanceof Double && v2 instanceof Double){
             nv = NodeValue.makeDecimal((double) v1 + (double) v2);
         } else if(v1 instanceof Double){
-            throw new ExprEvalException("sum: invalid order of arguments");
+            throw new ExprEvalException("add: invalid order of arguments");
         } else if(v2 instanceof RealDistribution){
-            nv = sum((RealDistribution) v1, (RealDistribution) v2);
+            nv = add((RealDistribution) v1, (RealDistribution) v2);
         } else {
-            nv = sum((RealDistribution) v1, (double) v2);
+            nv = add((RealDistribution) v1, (double) v2);
         }
         return nv;
     }
@@ -223,7 +223,7 @@ public class Probability {
      * @param k
      * @return
      */
-    public static NodeValue sum(RealDistribution x, double k) {
+    public static NodeValue add(RealDistribution x, double k) {
         final NodeValue nv;
         if(x instanceof NormalDistribution){
             final double mean = x.getNumericalMean() + k;
@@ -246,7 +246,7 @@ public class Probability {
      * @param d2
      * @return
      */
-    public static NodeValue sum(RealDistribution d1, RealDistribution d2) {
+    public static NodeValue add(RealDistribution d1, RealDistribution d2) {
         final NodeValue nv;
         if(d1 instanceof NormalDistribution && d2 instanceof NormalDistribution){
             final double mean = d1.getNumericalMean() + d2.getNumericalMean();
@@ -265,7 +265,7 @@ public class Probability {
      * @param k
      * @return
      */
-    public static NodeValue difference(RealDistribution x, double k) {
+    public static NodeValue subtract(RealDistribution x, double k) {
         final NodeValue nv;
         if(x instanceof NormalDistribution){
             final double mean = x.getNumericalMean() - k;
@@ -288,7 +288,7 @@ public class Probability {
      * @param d2
      * @return
      */
-    public static NodeValue difference(RealDistribution d1, RealDistribution d2) {
+    public static NodeValue subtract(RealDistribution d1, RealDistribution d2) {
         final NodeValue nv;
         if(d1 instanceof NormalDistribution && d2 instanceof NormalDistribution){
             final double mean = d1.getNumericalMean() - d2.getNumericalMean();

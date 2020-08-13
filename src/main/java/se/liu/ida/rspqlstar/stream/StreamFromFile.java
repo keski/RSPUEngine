@@ -5,44 +5,39 @@ import org.apache.log4j.Logger;
 import se.liu.ida.rdfstar.tools.parser.lang.LangTrigStar;
 import se.liu.ida.rspqlstar.store.dataset.RDFStarStream;
 import se.liu.ida.rspqlstar.store.dataset.RDFStarStreamElement;
-import se.liu.ida.rspqlstar.store.engine.main.pattern.QuadStarPattern;
 import se.liu.ida.rspqlstar.util.TimeUtil;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 import java.nio.file.Files;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.stream.Stream;
 
 public class StreamFromFile implements Runnable {
     private static Logger logger = Logger.getLogger(StreamFromFile.class);
     private RDFStarStream stream;
-    private final String BASE = "http://base/";
+    private final String base = "http://base/";
     private boolean stop = false;
+    public boolean isRunning = true;
     private String fileName;
     private String prefixes;
-    private long initialDelay;
-    private final String root = new File("").getAbsolutePath() + "/";
 
     /**
      * Produce a new stream from file. Each line is considered an element and a total delay
      * is produced between streamed elements.
      * @param stream
      * @param fileName
-     * @param initialDelay
      */
-    public StreamFromFile(RDFStarStream stream, String fileName, long initialDelay) {
+    public StreamFromFile(RDFStarStream stream, String fileName) {
         this.stream = stream;
         this.fileName = fileName;
-        this.initialDelay = initialDelay;
     }
 
     @Override
     public void run() {
         final File file = new File(fileName);
-        TimeUtil.silentSleep(initialDelay);
         try (Stream linesStream = Files.lines(file.toPath())) {
             final Iterator<String> linesIter = linesStream.iterator();
             while(linesIter.hasNext() && !stop){
@@ -53,27 +48,25 @@ public class StreamFromFile implements Runnable {
                 } else {
                     final RDFStarStreamElement tg = new RDFStarStreamElement();
                     RDFParser.create()
-                            .base("http://base/")
+                            .base(base)
                             .source(new ByteArrayInputStream((prefixes + line).getBytes()))
                             .checking(false)
                             .lang(LangTrigStar.TRIGSTAR)
                             .parse(tg);
 
                     // sleep until tg.time
-                    long sleep = tg.time - TimeUtil.getTime().getTime();
-                    if(sleep > 0){
-                        TimeUtil.silentSleep(sleep);
-                        //System.err.println(sleep);
-                    }
+                    long sleep = tg.getTime() - TimeUtil.getTime();
+                    TimeUtil.silentSleep(sleep);
                     push(tg);
                     if(!linesIter.hasNext()){
-                        logger.warn("No more data to stream into " + stream.iri);
+                        logger.warn("No more data to stream into " + stream.uri);
                     }
                 }
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
+        isRunning = false;
     }
 
     /**

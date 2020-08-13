@@ -3,8 +3,10 @@ package se.liu.ida.rspqlstar.stream;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
+import org.apache.jena.rdf.model.Literal;
 import org.apache.log4j.Logger;
 import se.liu.ida.rspqlstar.store.dataset.RDFStarStreamElement;
+import se.liu.ida.rspqlstar.util.TimeUtil;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -15,7 +17,9 @@ public class PerformanceWriterStream implements ContinuousListener {
     private boolean printHeader = true;
     private final PrintStream ps;
     private int skip = 0;
+    private int skipTotal = 0;
     private String sep = ",";
+    private String[] cols = {"rate", "type", "count"};
 
     /**
      * Log timing information from a continuous SELECT query.
@@ -35,66 +39,48 @@ public class PerformanceWriterStream implements ContinuousListener {
 
     /**
      * Use this function to skip the next x results.
-     * @param x
+     * @param skip
      */
-    public void setSkip(int x){
-        this.skip = x;
+    public void setSkip(int skip){
+        this.skip = skip;
+        skipTotal = skip;
     }
 
 
     @Override
     public void push(ResultSet rs, long startedAt) {
-        int counter = 0;
-        if(printHeader){
-            printHeader = false;
-            ps.print("rate");
-            ps.print(sep);
-            ps.print("ratio");
-            ps.print(sep);
-            ps.print("type");
-            ps.print(sep);
-            ps.print("exec_time");
-            ps.println();
-        }
-
-        // skip results?
-        if(skip > 0) {
-            while(rs.hasNext()) {
-                rs.next();
-                counter++;
+        try {
+            if (printHeader) {
+                printHeader = false;
+                ps.print(String.join(sep, cols));
+                ps.println(sep + "exec_time");
             }
-            skip--;
-            logger.info("Skipped " + counter + " results ");
-            return;
-        }
+            if (!rs.hasNext()) {
+                logger.warn("Empty result");
+            }
 
-        if(!rs.hasNext()){
-            logger.warn("Empty result" );
-        }
+            final QuerySolution qs = rs.hasNext() ? rs.next() : null;
+            logger.debug(qs);
 
-        // collect results
-        String rate = "-1";
-        String ratio = "-1";
-        String type = "-1";
-        while(rs.hasNext()) {
-            counter++;
-            final QuerySolution qs = rs.next();
-            rate = qs.get("rate").asLiteral().getLexicalForm();
-            ratio = qs.get("ratio").asLiteral().getLexicalForm();
-            type = qs.get("type").asLiteral().getLexicalForm();
-            //logger.debug(qs);
-        }
-        final long executionTime = System.currentTimeMillis() - startedAt;
-        logger.debug("Executed in " + executionTime + " ms,  found " + counter + " results");
+            final long executionTime = System.nanoTime() - startedAt;
+            logger.debug("Executed in " + executionTime/1_000_000.0 + " ms");
 
-        ps.print(rate);
-        ps.print(sep);
-        ps.print(ratio);
-        ps.print(sep);
-        ps.print(type);
-        ps.print(sep);
-        ps.print(executionTime);
-        ps.println();
+            // skip
+            if(skip == 0) {
+                for (String col : cols) {
+                    ps.print(qs.getLiteral(col).getLexicalForm());
+                    ps.print(sep);
+                }
+                ps.print(executionTime);
+                ps.print("\n");
+            } else {
+                skip--;
+                logger.debug(qs);
+                logger.debug("Skipped " + (skipTotal-skip) + " of " + skipTotal);
+            }
+        } catch (Exception e){
+            logger.error(e.getMessage());
+        }
     }
 
     @Override

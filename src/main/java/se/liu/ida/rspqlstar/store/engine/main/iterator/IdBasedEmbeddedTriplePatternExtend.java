@@ -69,7 +69,7 @@ public class IdBasedEmbeddedTriplePatternExtend implements Iterator<SolutionMapp
                     currentMatches = Collections.<IdBasedQuad>emptyList().iterator();
                 }
             } else {
-                currentMatches = dsg.find(currentQueryPattern);
+                currentMatches = dsg.idBasedFind(currentQueryPattern);
             }
         }
         return true;

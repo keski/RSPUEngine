@@ -12,6 +12,7 @@ import org.apache.jena.sparql.function.FunctionFactory;
 import org.apache.jena.sparql.function.FunctionRegistry;
 import org.apache.log4j.Logger;
 import se.liu.ida.rspqlstar.util.Utils;
+import smile.License;
 import smile.Network;
 
 import java.io.File;
@@ -20,6 +21,13 @@ import java.util.*;
 public class BayesianNetwork {
     private static final Logger logger = Logger.getLogger(BayesianNetwork.class);
     public static Map<String, Network> bnMap = new HashMap<>();
+
+    public static void main(String[] args){
+        init();
+        final String absPath = new File("").getAbsolutePath() + "/libs/jsmile-1.4.0-academic/";
+
+        final Network net = new Network();
+    }
 
     /**
      * Initiate the SMILE library with current user credentials.
@@ -144,6 +152,7 @@ public class BayesianNetwork {
     }
 
     public static HashMap<NodeValue, Double> getOutcomes(Network bn, int targetNodeId, List<NodeValue> evidence){
+        // TODO: Fix bug in the code below!
         /*
         final String ns = nsMap.get(bn);
         for(int i=0; i < evidence.size(); i = i + 2){

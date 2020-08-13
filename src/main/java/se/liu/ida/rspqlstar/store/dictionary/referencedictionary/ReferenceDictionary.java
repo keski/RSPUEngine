@@ -10,7 +10,7 @@ public interface ReferenceDictionary {
 
     long addIfNecessary(IdBasedTriple idBasedTriple);
 
-    Long getId(IdBasedTriple idBasedTriple);
+    long getId(IdBasedTriple idBasedTriple);
 
     long size();
 

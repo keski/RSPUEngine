@@ -11,7 +11,9 @@ import se.liu.ida.rspqlstar.store.dataset.RDFStarStream;
 import se.liu.ida.rspqlstar.store.dataset.StreamingDatasetGraph;
 import se.liu.ida.rspqlstar.stream.StreamFromFile;
 import se.liu.ida.rspqlstar.util.TimeUtil;
+import se.liu.ida.rspqlstar.util.Utils;
 
+import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -21,7 +23,6 @@ public class RSPQLStarEngineManager {
     private Map<String, RSPQLStarQueryExecution> queries = new HashMap<>();
     private Map<String, RDFStarStream> streams = new HashMap<>();
     private StreamingDatasetGraph sdg;
-    private long applicationTime;
     final ExecutorService executor;
     final List<StreamFromFile> streamsFromFiles = new ArrayList<>();
 
@@ -35,26 +36,27 @@ public class RSPQLStarEngineManager {
         BayesianNetwork.init();
     }
 
-    /**
-     * Create a new RSPUEngine manager
-     * @param applicationTime
-     */
-    public RSPQLStarEngineManager(long applicationTime){
-        RSPQLStarEngine.register();
-        ARQ.init();
-        Probability.init();
-        executor = Executors.newFixedThreadPool(8);
-        setApplicationTime(applicationTime);
-        sdg = new StreamingDatasetGraph();
+    public static void loadData(InputStream in){
+
     }
 
     /**
-     * Set application time.
-     * @param applicationTime
+     * Create a new RSPUEngine manager
+     * @param applicationTime Application time. Offsets internal clock accordingly.
      */
-    public void setApplicationTime(long applicationTime){
+    public RSPQLStarEngineManager(long applicationTime){
+        this(applicationTime, 8);
+    }
+
+    /**
+     * Create a new RSPUEngine manager
+     * @param applicationTime Application time. Offsets internal clock accordingly.
+     * @param executorThreadPool Size of executor thread pool
+     */
+    public RSPQLStarEngineManager(long applicationTime, int executorThreadPool){
+        executor = Executors.newFixedThreadPool(executorThreadPool);
         TimeUtil.setOffset(new Date().getTime() - applicationTime);
-        this.applicationTime = applicationTime;
+        sdg = new StreamingDatasetGraph(applicationTime);
     }
 
     /**
@@ -83,23 +85,34 @@ public class RSPQLStarEngineManager {
 
         // execute query
         if(query.isSelectType()){
-            executor.submit(qexec.execContinuousSelect(applicationTime + 1));
+            executor.submit(qexec.execContinuousSelect());
         } else if(query.isConstructType()) {
+            throw new IllegalStateException("Not yet implemented in manager");
             // create output stream
             //final RDFStarStream stream = registerStream(outputStream);
             //qexec.addContinuousListener(new ConstructStream(stream));
-            executor.submit(qexec.execContinuousConstruct(applicationTime + 1));
+            //executor.submit(qexec.execContinuousConstruct(applicationTime + 1));
         }
         return qexec;
     }
 
     public void stop(){
-        streamsFromFiles.iterator().forEachRemaining(StreamFromFile::stop);
-        queries.values().iterator().forEachRemaining(RSPQLStarQueryExecution::stop);
-        TimeUtil.silentSleep(2000);
-        streams.values().iterator().forEachRemaining(RDFStarStream::clearListeners);
-        executor.shutdown();
-        TimeUtil.silentSleep(2000);
+        // Stop all queries
+        try {
+            for (RSPQLStarQueryExecution exec : queries.values()) {
+                exec.stop();
+            }
+            TimeUtil.silentSleep(2000);
+            // Stop all streams
+            for (StreamFromFile stream : streamsFromFiles) {
+                stream.stop();
+                stream.getStream().clearListeners();
+            }
+            // Close down executor
+            executor.shutdown();
+        } catch (Exception e){
+            logger.error(e.getMessage());
+        }
     }
 
     /**
@@ -108,10 +121,19 @@ public class RSPQLStarEngineManager {
      * @return
      */
     public RDFStarStream registerStream(String streamUri){
-        if(streams.containsKey(streamUri)){
-            logger.warn("A stream with the URI " + streamUri + " is already registered");
+        // check valid URI
+        if(!Utils.isValidUri(streamUri)){
+            logger.warn(streamUri + " is not a valid URI");
             return null;
         }
+
+        // check if already registered
+        if(streams.containsKey(streamUri)){
+            logger.warn(streamUri + " has already been registered");
+            return null;
+        }
+
+        // register new stream
         final RDFStarStream stream = new RDFStarStream(streamUri);
         streams.put(streamUri, stream);
         sdg.registerStream(stream);
@@ -133,7 +155,7 @@ public class RSPQLStarEngineManager {
      */
     public void registerStreamFromFile(String filePath, String streamUri){
         final RDFStarStream stream = registerStream(streamUri);
-        final StreamFromFile fileStream = new StreamFromFile(stream, filePath, 0);
+        final StreamFromFile fileStream = new StreamFromFile(stream, filePath);
         executor.submit(fileStream);
         streamsFromFiles.add(fileStream);
     }

@@ -10,9 +10,6 @@ import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.iterator.QueryIterAssign;
-import org.apache.jena.sparql.engine.iterator.QueryIterProject;
-import org.apache.jena.sparql.engine.iterator.QueryIterProjectMerge;
-import org.apache.jena.sparql.engine.iterator.QueryIterRoot;
 import org.apache.jena.sparql.engine.main.OpExecutor;
 import org.apache.jena.sparql.engine.main.OpExecutorFactory;
 import org.apache.jena.sparql.expr.Expr;
@@ -38,7 +35,7 @@ public class OpRSPQLStarExecutor extends OpExecutor {
     final private NodeDictionary nd = NodeDictionaryFactory.get();
 
     /**
-     * Make sure QueryIterRoot closes if query result is empty.
+     * Note: Make sure QueryIterRoot closes if query result is empty.
      * @param op
      * @param input
      * @return
@@ -184,28 +181,26 @@ public class OpRSPQLStarExecutor extends OpExecutor {
     }
 
     private Iterator<SolutionMapping> execute(OpExtend opExtend, Iterator<SolutionMapping> input) {
-        Iterator<SolutionMapping> iter1 = executeIdBasedOp(opExtend.getSubOp(), input);
-
-        Iterator<SolutionMapping> iter;
+        final Iterator<SolutionMapping> iter1 = executeIdBasedOp(opExtend.getSubOp(), input);
+        final Iterator<SolutionMapping> iter;
 
         // regular extend
         final Expr expr = opExtend.getVarExprList().getExprs().values().iterator().next();
         final Var var = opExtend.getVarExprList().getVars().get(0);
-        final Key key;
 
         if(expr instanceof ExprVar){
-            int var2 = encode(expr.getExprVar().asVar()); // should now already have been assigned a value
+            final int var2 = encode(expr.getExprVar().asVar());
             iter = new IdBasedVarToVarExtendIterator(encode(var), var2, iter1, execCxt);
         } else if(expr instanceof ExprFunction) {
             encode(var); // add the var to varDict
-            QueryIterator qIter = new DecodeBindingsIterator(iter1, execCxt);
-            QueryIterator qIter2 = new QueryIterAssign(qIter, opExtend.getVarExprList(), this.execCxt, true);
+            final QueryIterator qIter1 = new DecodeBindingsIterator(iter1, execCxt);
+            final QueryIterator qIter2 = new QueryIterAssign(qIter1, opExtend.getVarExprList(), this.execCxt, true);
             iter = new EncodeBindingsIterator(qIter2, execCxt);
         } else {
             final Node node = ((NodeValue) expr).asNode();
-            final Long id = encode(node);
+            final long id = encode(node);
             // use NodeWrapperKey if the value cannot be encoded
-            key = id != null ? new Key(id) : new NodeWrapperKey(node);
+            final Key key = id == -1 ? new NodeWrapperKey(node): new Key(id);
             iter = new IdBasedExtendIterator(encode(var), key, iter1, execCxt);
         }
         return iter;
@@ -243,6 +238,7 @@ public class OpRSPQLStarExecutor extends OpExecutor {
     }
 
     public Iterator<SolutionMapping> executeIdBasedOp(final Op op, final Iterator<SolutionMapping> input){
+        //logger.info(op.getClass());
         final Iterator<SolutionMapping> iterator;
         if (op instanceof OpQuad) {
             iterator = execute((OpQuad) op, input);
@@ -253,7 +249,6 @@ public class OpRSPQLStarExecutor extends OpExecutor {
         } else if (op instanceof OpSequence) {
             iterator = execute((OpSequence) op, input);
         } else if (op instanceof OpExtend) {
-            // opExtend should be treated similarly to a join
             iterator = execute((OpExtend) op, input);
         } else if (op instanceof OpExtendQuad) {
             iterator = execute((OpExtendQuad) op, input);
@@ -270,9 +265,8 @@ public class OpRSPQLStarExecutor extends OpExecutor {
         //    iterator = new IteratorChain<>(executeIdBasedOp(opUnion.getLeft(), input), executeIdBasedOp(opUnion.getRight(), input));
         //
         else {
-            System.err.println("There is no id-based iterator implemented for " + op + ", defaulting to decode/encode");
             logger.info("There is no id-based iterator implemented for " + op + ", defaulting to decode/encode");
-            QueryIterator iter = exec(op, new DecodeBindingsIterator(input, execCxt));
+            final QueryIterator iter = exec(op, new DecodeBindingsIterator(input, execCxt));
             return new EncodeBindingsIterator(iter, execCxt);
         }
         return iterator;
@@ -284,8 +278,7 @@ public class OpRSPQLStarExecutor extends OpExecutor {
      * @return
      */
     private QuadStarPattern encode(final OpQuad opQuad) {
-        final Quad quad = opQuad.getQuad();
-        return encode(quad);
+        return encode(opQuad.getQuad());
     }
 
     /**
@@ -325,7 +318,7 @@ public class OpRSPQLStarExecutor extends OpExecutor {
      * @param node
      * @return
      */
-    private Long encode(final Node node) {
+    private long encode(final Node node) {
         return nd.getId(node);
     }
 
@@ -342,15 +335,10 @@ public class OpRSPQLStarExecutor extends OpExecutor {
     private Element encodeAsElement(Node node){
         final Element el;
         if(node.isVariable()){
-            final int varId = encode((Var) node);
-            el = new Variable(varId);
+            el = new Variable(encode((Var) node));
         } else {
-            final Long id = encode(node);
-            if(id == null) {
-                el = new NodeWrapperKey(node);
-            } else {
-                el = new Key(id);
-            }
+            final long id = encode(node);
+            el = id == -1 ?  new NodeWrapperKey(node) : new Key(id);
         }
         return el;
     }

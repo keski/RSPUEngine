@@ -3,6 +3,7 @@ package se.liu.ida.rspqlstar.store.engine.main.pattern;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Node_Triple;
 import org.apache.jena.graph.Triple;
+import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.sparql.core.Var;
 import se.liu.ida.rspqlstar.store.dictionary.VarDictionary;
 import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.NodeDictionary;
@@ -23,6 +24,19 @@ public class QuadPatternBuilder {
 
     public QuadStarPattern createQuadPattern() {
         return new QuadStarPattern(graph, subject, predicate, object);
+    }
+
+    public static QuadStarPattern createQuadPattern(Quad quad){
+        return createQuadPattern(quad.getGraph(), quad.getSubject(), quad.getPredicate(), quad.getObject());
+    }
+
+    public static QuadStarPattern createQuadPattern(Node graph, Node subject, Node predicate, Node object) {
+        final QuadPatternBuilder builder = new QuadPatternBuilder();
+        builder.setGraph(graph);
+        builder.setSubject(subject);
+        builder.setPredicate(predicate);
+        builder.setObject(object);
+        return builder.createQuadPattern();
     }
 
     private QuadStarPattern createEmbeddedPattern(Node_Triple node) {

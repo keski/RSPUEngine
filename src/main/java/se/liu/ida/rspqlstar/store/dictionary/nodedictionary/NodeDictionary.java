@@ -11,7 +11,7 @@ public interface NodeDictionary {
 
     long addNode(Node node, long id);
 
-    Long getId(Node node);
+    long getId(Node node);
 
     long size();
 

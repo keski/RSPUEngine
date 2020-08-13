@@ -5,14 +5,8 @@ import org.apache.jena.query.ResultSet;
 import se.liu.ida.rspqlstar.store.dataset.RDFStarStreamElement;
 
 public interface ContinuousListener {
-    void push(ResultSet rs, long startedAt);
-    void push(Dataset ds, long startedAt);
-    default void push(ResultSet rs){
-        push(rs, -1);
-    }
-    default void push(Dataset ds) {
-        push(ds, -1);
-    };
+    void push(ResultSet rs, long executionTime);
+    void push(Dataset ds, long executionTime);
     void push(RDFStarStreamElement tg);
     default void setSkip(int skip){};
     default void flush(){};
