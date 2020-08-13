@@ -1,20 +1,25 @@
-# Performance query
+# Performance query: option 5
+# Description: Pattern uncertainty with attribute uncertainty.
+# Stream type:
+# - attribute uncertainty: .05
+# - occurrence uncertainty: 0
+# - stream rate: varies
 
 BASE <http://base/>
 PREFIX : <http://ecare#>
 PREFIX rspu: <http://w3id.org/rsp/rspu#>
 PREFIX sosa: <http://www.w3.org/ns/sosa/>
 
-REGISTER STREAM <correctness> COMPUTED EVERY PT1S AS
-SELECT ($RATE$ AS ?rate) ($RATIO$ AS ?ratio) ("Combined" AS ?type) ?confidence ?foi
+REGISTER STREAM <performance> COMPUTED EVERY PT1S AS
+SELECT ($RATE$ AS ?rate) ("option5" AS ?type) (COUNT(*) AS ?count)
 FROM NAMED WINDOW <w1> ON <stream/hr> [RANGE PT1S STEP PT1S]
 FROM NAMED WINDOW <w2> ON <stream/br> [RANGE PT1S STEP PT1S]
 FROM NAMED WINDOW <w3> ON <stream/ox> [RANGE PT1S STEP PT1S]
 WHERE {
     WINDOW <w1> {
         GRAPH ?g1 {
-            ?id sosa:featureOfInterest ?foi ;
-                a :HeartRate .
+            ?id1 sosa:featureOfInterest ?foi ;
+                 a :HeartRate .
             << ?id1 sosa:hasSimpleResult ?hr >> rspu:error ?hrError .
         }
     }
@@ -33,13 +38,13 @@ WHERE {
         }
     }
 
-    BIND(rspu:greaterThan(rspu:sum(?hrError, ?hr), 100) AS ?pHr)
-    BIND(rspu:greaterThan(rspu:sum(?brError, ?br), 30) AS ?pBr)
-    BIND(rspu:lessThan(rspu:sum(?oxError, ?ox), 90) AS ?pOx)
+    BIND(rspu:greaterThan(rspu:add(?hrError, ?hr), 100) AS ?pHr)
+    BIND(rspu:greaterThan(rspu:add(?brError, ?br), 30) AS ?pBr)
+    BIND(rspu:lessThan(rspu:add(?oxError, ?ox), 90) AS ?pOx)
 
-    BIND(rspu:belief(<http://ecare/bn#medical>,
-        :COPDExacerbation, true,
-        :HighHeartRate, ?pHr,
-        :HighBreathingRate, ?pBr,
-        :LowOxygenSaturation, ?pOx) AS ?confidence)
+    BIND( rspu:belief(<http://ecare/bn#medical>,
+          :COPDExacerbation, true,
+          :HighHeartRate, ?pHr,
+          :HighBreathingRate, ?pBr,
+          :LowOxygenSaturation, ?pOx) AS ?pTot )
 }

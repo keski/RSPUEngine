@@ -1,0 +1,51 @@
+# Performance query: option 3
+# Description: Pattern uncertainty. Observations are simply assumed to be true if the probability is greater than 0.5 (MLE)
+# Stream type:
+# - attribute uncertainty: 0
+# - occurrence uncertainty: .05
+# - stream rate: varies
+
+BASE <http://base/>
+PREFIX : <http://ecare#>
+PREFIX rspu: <http://w3id.org/rsp/rspu#>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+
+REGISTER STREAM <performance> COMPUTED EVERY PT1S AS
+SELECT ($RATE$ AS ?rate) ("option3" AS ?type) (COUNT(*) AS ?count)
+FROM NAMED WINDOW <w1> ON <stream/hr> [RANGE PT1S STEP PT1S]
+FROM NAMED WINDOW <w2> ON <stream/br> [RANGE PT1S STEP PT1S]
+FROM NAMED WINDOW <w3> ON <stream/ox> [RANGE PT1S STEP PT1S]
+WHERE {
+    WINDOW <w1> {
+        GRAPH ?g1 {
+            ?id1 sosa:featureOfInterest ?foi ;
+                 a :HeartRate .
+            << ?id1 a :HighHeartRate >> rspu:probability ?pHr .
+        }
+    }
+    WINDOW <w2> {
+        GRAPH ?g2 {
+            ?id2 sosa:featureOfInterest ?foi ;
+                 a :BreathingRate .
+            << ?id2 a :HighBreathingRate >> rspu:probability ?pBr .
+        }
+    }
+    WINDOW <w3> {
+        GRAPH ?g3 {
+            ?id3 sosa:featureOfInterest ?foi ;
+                 a :OxygenSaturation .
+            << ?id3 a :LowOxygenSaturation >> rspu:probability ?pOx .
+        }
+    }
+
+    # simple filtering: if p > 0.5 then assume true
+    BIND(IF(?pHr > .5, 1, 0) AS ?hrState)
+    BIND(IF(?pBr > .5, 1, 0) AS ?brState)
+    BIND(IF(?pOx > .5, 1, 0) AS ?oxState)
+
+    BIND( rspu:belief(<http://ecare/bn#medical>,
+          :COPDExacerbation, true,
+          :HighHeartRate, ?hrState,
+          :HighBreathingRate, ?brState,
+          :LowOxygenSaturation, ?oxState) AS ?confidence )
+}

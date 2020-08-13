@@ -1,5 +1,10 @@
-# Correctness query. Not optimized for performance.
-# Determines TP, TN, FP, FN
+# Correctness query: option 3
+# Description: Pattern uncertainty. Observations are simply assumed to be true if the probability is greater than 0.5 (MLE)
+# Stream type:
+# - attribute uncertainty: 0
+# - occurrence uncertainty: 0, .01, .05, .10, .25
+# - stream rate: 1000 events/s per stream
+# Determines: TP, TN, FP, FN
 
 BASE <http://base/>
 PREFIX : <http://ecare#>
@@ -7,34 +12,32 @@ PREFIX rspu: <http://w3id.org/rsp/rspu#>
 PREFIX sosa: <http://www.w3.org/ns/sosa/>
 
 REGISTER STREAM <correctness> COMPUTED EVERY PT1S AS
-SELECT ?pTot ?actual ?foi ("attribute" AS ?type) ($OCCURRENCE$ AS ?occurrence) ($ATTRIBUTE$ AS ?attribute) ?threshold ?tn ?tp ?fp ?fn
+SELECT ?pTot ?actual ?foi ("option3" AS ?type) ?threshold ?tn ?tp ?fp ?fn
+($OCCURRENCE$ AS ?occurrence) ($ATTRIBUTE$ AS ?attribute)
 FROM NAMED WINDOW <w1> ON <stream/hr> [RANGE PT1S STEP PT1S]
 FROM NAMED WINDOW <w2> ON <stream/br> [RANGE PT1S STEP PT1S]
 FROM NAMED WINDOW <w3> ON <stream/ox> [RANGE PT1S STEP PT1S]
+# oracle stream
 FROM NAMED WINDOW <w4> ON <stream/ce> [RANGE PT1S STEP PT1S]
 WHERE {
     WINDOW <w1> {
         GRAPH ?g1 {
             ?id1 sosa:featureOfInterest ?foi .
-            << ?id1 sosa:hasSimpleResult ?hr >> rspu:error ?hrError .
+            << ?id1 a :HighHeartRate >> rspu:probability ?pHr .
         }
     }
-    BIND(rspu:greaterThan(rspu:add(?hrError, ?hr), 100) AS ?pHr)
     WINDOW <w2> {
         GRAPH ?g2 {
             ?id2 sosa:featureOfInterest ?foi .
-            << ?id2 sosa:hasSimpleResult ?br >> rspu:error ?brError .
+            << ?id2 a :HighBreathingRate >> rspu:probability ?pBr .
         }
     }
-    BIND(rspu:greaterThan(rspu:add(?brError, ?br), 30) AS ?pBr)
     WINDOW <w3> {
         GRAPH ?g3 {
-             ?id3 sosa:featureOfInterest ?foi .
-            << ?id3 sosa:hasSimpleResult ?ox >> rspu:error ?oxError .
+            ?id3 sosa:featureOfInterest ?foi .
+            << ?id3 a :LowOxygenSaturation >> rspu:probability ?pOx .
         }
     }
-    BIND(rspu:lessThan(rspu:add(?oxError, ?ox), 90) AS ?pOx)
-
     WINDOW <w4> {
         GRAPH ?g4 {
             ?id4 sosa:featureOfInterest ?foi .
@@ -43,7 +46,12 @@ WHERE {
     }
 
     BIND($THRESHOLD$ AS ?threshold)
-    BIND(?pHr * ?pBr * ?pOx AS ?pTot)
+    BIND(rspu:belief(<http://ecare/bn#medical>,
+        :COPDExacerbation, true,
+        :HighHeartRate, IF(?pHr > .5, 1, 0),
+        :HighBreathingRate, IF(?pBr > .5, 1, 0),
+        :LowOxygenSaturation, IF(?pOx > .5, 1, 0)) AS ?pTot)
+
     BIND(?pTot >= ?threshold AS ?predicted)
     BIND(?pCe = 1 AS ?actual)
     BIND(?predicted && ?actual AS ?tp)

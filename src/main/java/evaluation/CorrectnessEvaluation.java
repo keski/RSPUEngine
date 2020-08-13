@@ -15,6 +15,7 @@ import se.liu.ida.rspqlstar.util.Utils;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.HashMap;
 
 public class CorrectnessEvaluation {
     private static Logger logger = Logger.getLogger(CorrectnessEvaluation.class);
@@ -26,78 +27,83 @@ public class CorrectnessEvaluation {
         final int ratio = 1;
         final double[] occUncList = {.01, .05, .10, .25};
         final double[] attrUncList = {.01, .05, .10, .25};
-        final int duration = 10000;
+        final int duration = 30000;
         final int skip = 5;
-        final double[] thresholds = {0, .01, .05, .10, .15, .20, .25, .30, .70, .75, .80, .85, .90, .95, 0.99, 0.999};
+        final double[] thresholds = {
+                0, 0.00001, .0001, .001, .01,
+                .05, .10, .15, .20, .25, .30, .35, .40, .45, .50,
+                .55, .60, .65, .70, .75, .80, .85, .90, .95, 0.99
+        };
+
 
         if(false){
-            Generator.run(duration + 5000, new int[]{rate}, occUncList, attrUncList);
+            Generator.run(duration + (skip + 5) * 1000, new int[]{rate}, occUncList, attrUncList);
             return;
         }
 
         RSPQLStarEngineManager.init();
-        BayesianNetwork.loadNetwork("http://ecare/bn#medical", root + "data/experiments/medical.bn");
+        BayesianNetwork.loadNetwork("http://ecare/bn#medical", root + "experiments/medical.bn");
 
         // Activate/de-active runs
-        boolean attribute = false;
-        boolean pattern = false;
-        boolean combined = false;
-        boolean baseline = true;
+        boolean opt1 = true;
+        boolean opt2 = false;
+        boolean opt3 = false;
+        boolean opt4 = false;
+        boolean opt5 = false;
 
         // Files and listeners
-        final String attributeFile = root + "data/experiments/results/attribute_correctness.csv";
-        final ResultWriterStream attributeListener = attribute ? new ResultWriterStream(attributeFile) : null;
-        final String patternFile = root + "data/experiments/results/pattern_correctness.csv";
-        final ResultWriterStream patternListener = pattern ? new ResultWriterStream(patternFile) : null;
-        final String combinedFile = root + "data/experiments/results/combined_correctness.csv";
-        final ResultWriterStream combinedListener = combined ? new ResultWriterStream(combinedFile) : null;
+        final String f1 = root + "experiments/results/correctness/option1.csv";
+        final ResultWriterStream option1Listener = opt1 ? new ResultWriterStream(f1) : null;
+        final String f2 = root + "experiments/results/correctness/option2.csv";
+        final ResultWriterStream option2Listener = opt2 ? new ResultWriterStream(f2) : null;
+        final String f3 = root + "experiments/results/correctness/option3.csv";
+        final ResultWriterStream option3Listener = opt3 ? new ResultWriterStream(f3) : null;
+        final String f4 = root + "experiments/results/correctness/option4.csv";
+        final ResultWriterStream option4Listener = opt4 ? new ResultWriterStream(f4) : null;
+        final String f5 = root + "experiments/results/correctness/option5.csv";
+        final ResultWriterStream option5Listener = opt5 ? new ResultWriterStream(f5) : null;
 
-        final String baselineFile = root + "data/experiments/results/baseline_correctness.csv";
-        final ResultWriterStream baselineListener = baseline ? new ResultWriterStream(baselineFile) : null;
+        int opt1Remaining = attrUncList.length * thresholds.length;
+        int opt2Remaining = occUncList.length * thresholds.length;
+        int opt3Remaining = occUncList.length * thresholds.length;
+        int opt4Remaining = occUncList.length * thresholds.length;
+        int opt5Remaining = attrUncList.length * thresholds.length;
 
-        int attributeCounter = 0;
-        int patternCounter = 0;
-        int combinedCounter = 0;
+
         for (double threshold : thresholds) {
             // Uncertainty
-            if (attribute) {
-                for (double attrUnc : attrUncList) {
-                    attributeCounter++;
-                    logger.info("Attribute: " + attributeCounter + " of " + attrUncList.length * thresholds.length);
-                    correctness("attribute", 0, attrUnc, threshold, rate, ratio, attributeListener, duration, skip);
-                }
-            }
-            if (pattern) {
-                for (double occUnc : occUncList) {
-                    patternCounter++;
-                    logger.info("Pattern: " + patternCounter + " of " + occUncList.length * thresholds.length);
-                    correctness("pattern", occUnc, 0, threshold, rate, ratio, patternListener, duration, skip);
-                }
-            }
-            if (combined) {
-                for (double attrUnc : attrUncList) {
-                    combinedCounter++;
-                    logger.info("Combined: " + combinedCounter + " of " + attrUncList.length * thresholds.length);
-                    correctness("combined", 0, attrUnc, threshold, rate, ratio, combinedListener, duration, skip);
-                }
-            }
-        }
-        if(baseline) {
             for (double attrUnc : attrUncList) {
-                correctness("attribute-baseline", 0, attrUnc, 0, rate, ratio, baselineListener, duration, skip);
-                correctness("combined-baseline", 0, attrUnc, 0, rate, ratio, baselineListener, duration, skip);
+                if (opt1) {
+                    logger.info("################# Option 1: Remaining " + opt1Remaining--);
+                    correctness("option1", 0, attrUnc, threshold, rate, ratio, option1Listener, duration, skip);
+                }
+                if (opt5) {
+                    logger.info("################# Option 5: Remaining " + opt5Remaining--);
+                    correctness("option5", 0, attrUnc, threshold, rate, ratio, option5Listener, duration, skip);
+                }
             }
             for (double occUnc : occUncList) {
-                correctness("pattern-baseline", occUnc, 0, 0, rate, ratio, baselineListener, duration, skip);
+                if (opt2) {
+                    logger.info("################# Option 2: Remaining " + opt2Remaining--);
+                    correctness("option2", occUnc, 0, threshold, rate, ratio, option2Listener, duration, skip);
+                }
+                if (opt3) {
+                    logger.info("################# Option 3: Remaining " + opt3Remaining--);
+                    correctness("option3", occUnc, 0, threshold, rate, ratio, option3Listener, duration, skip);
+                }
+                if (opt4) {
+                    logger.info("################# Option 4: Remaining " + opt4Remaining--);
+                    correctness("option4", occUnc, 0, threshold, rate, ratio, option4Listener, duration, skip);
+                }
             }
+
         }
 
-
-        if(attribute) attributeListener.close();
-        if(pattern) patternListener.close();
-        if(combined) combinedListener.close();
-        if(baseline) baselineListener.close();
-
+        if(opt1) option1Listener.close();
+        if(opt2) option2Listener.close();
+        if(opt3) option3Listener.close();
+        if(opt4) option4Listener.close();
+        if(opt5) option5Listener.close();
     }
 
     /**
@@ -119,7 +125,7 @@ public class CorrectnessEvaluation {
         final long applicationTime = Generator.referenceTime;
         final RSPQLStarEngineManager manager = new RSPQLStarEngineManager(applicationTime);
         listener.setSkip(skip);
-        final String base = String.format("data/experiments/streams/%.2f-%.2f-%s_", occUnc, attrUnc, rate);
+        final String base = String.format("experiments/streams/%.2f-%.2f-%s_", occUnc, attrUnc, rate);
 
         // Register streams
         manager.registerStreamFromFile(root + base + ratio + "_ce.trigs", "http://base/stream/ce");
@@ -128,7 +134,7 @@ public class CorrectnessEvaluation {
         manager.registerStreamFromFile(root + base + ratio + "_ox.trigs", "http://base/stream/ox");
 
         // Register query
-        final String queryFile  = root + "data/experiments/queries/" + type + "_correctness.rspqlstar";
+        final String queryFile  = root + "experiments/queries/correctness/" + type + ".rspqlstar";
 
         String qString = Utils.readFile(queryFile);
         qString = qString.replace("$THRESHOLD$", Double.toString(threshold));

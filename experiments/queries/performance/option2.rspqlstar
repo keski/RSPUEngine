@@ -1,10 +1,17 @@
+# Performance query: option 2
+# Description: Occurrence uncertainty (independent)
+# Stream type:
+# - attribute uncertainty: 0
+# - occurrence uncertainty: .05
+# - stream rate: varies
+
 BASE <http://base/>
 PREFIX : <http://ecare#>
 PREFIX rspu: <http://w3id.org/rsp/rspu#>
 PREFIX sosa: <http://www.w3.org/ns/sosa/>
 
-REGISTER STREAM <correctness> COMPUTED EVERY PT1S AS
-SELECT ($RATE$ AS ?rate) ($RATIO$ AS ?ratio) ("Pattern" AS ?type) ?confidence ?foi
+REGISTER STREAM <performance> COMPUTED EVERY PT1S AS
+SELECT ($RATE$ AS ?rate) ("option2" AS ?type) (COUNT(*) AS ?count)
 FROM NAMED WINDOW <w1> ON <stream/hr> [RANGE PT1S STEP PT1S]
 FROM NAMED WINDOW <w2> ON <stream/br> [RANGE PT1S STEP PT1S]
 FROM NAMED WINDOW <w3> ON <stream/ox> [RANGE PT1S STEP PT1S]
@@ -12,28 +19,24 @@ WHERE {
     WINDOW <w1> {
         GRAPH ?g1 {
             ?id1 sosa:featureOfInterest ?foi ;
-                 sosa:hasSimpleResult ?hr .
+                 a :HeartRate .
             << ?id1 a :HighHeartRate >> rspu:probability ?pHr .
         }
     }
     WINDOW <w2> {
         GRAPH ?g2 {
             ?id2 sosa:featureOfInterest ?foi ;
-                 sosa:hasSimpleResult ?br .
+                 a :BreathingRate .
             << ?id2 a :HighBreathingRate >> rspu:probability ?pBr .
         }
     }
     WINDOW <w3> {
-       GRAPH ?g3 {
+        GRAPH ?g3 {
             ?id3 sosa:featureOfInterest ?foi ;
-                 sosa:hasSimpleResult ?ox .
+                 a :OxygenSaturation .
             << ?id3 a :LowOxygenSaturation >> rspu:probability ?pOx .
-
         }
     }
-    BIND(rspu:belief(<http://ecare/bn#medical>,
-        :COPDExacerbation, true,
-        :HighHeartRate, ?pHr,
-        :HighBreathingRate, ?pBr,
-        :LowOxygenSaturation, ?pOx) AS ?confidence)
+
+    BIND(?pHr * ?pBr * ?pOx AS ?confidence)
 }
