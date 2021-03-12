@@ -56,7 +56,8 @@ public class EncodeBindingsIterator implements Iterator<SolutionMapping>, Closea
                 curOutput.set(varDict.getId(var), new TripleWrapperKey(idBasedTriple));
             } else {
                 final Long id = nd.getId(value);
-                Key key = id != null ? new Key(id) : new NodeWrapperKey(value);
+                Key key = id != -1 ? new Key(id) : new NodeWrapperKey(value);
+
                 curOutput.set(varDict.getId(var), key);
                 //curOutput.set(varDict.getId(var), new Key(id));
             }
