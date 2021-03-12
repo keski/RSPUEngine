@@ -39,14 +39,6 @@ public class ResultWriterStream implements ContinuousListener {
         this(new PrintStream(new File(fileName)));
     }
 
-    /**
-     * Use this function to skip the next x results.
-     * @param x
-     */
-    public void setSkip(int x){
-        this.skip = x;
-    }
-
     @Override
     public void push(Dataset ds, long executionTime) {
         throw new IllegalStateException("Not supported");
@@ -55,30 +47,6 @@ public class ResultWriterStream implements ContinuousListener {
     @Override
     public void push(ResultSet rs, long executionTime) {
         int counter = 0;
-        if(printHeader){
-            printHeader = false;
-            final Iterator<String> iter = rs.getResultVars().iterator();
-            while(iter.hasNext()){
-                ps.print(iter.next());
-                if(iter.hasNext()) {
-                    ps.print(sep);
-                }
-            }
-            ps.println();
-        }
-
-        // skip results
-        if(skip > 0) {
-            while(rs.hasNext()) {
-                rs.next();
-                counter++;
-            }
-            skip--;
-            final long duration = TimeUtil.getTime() - executionTime;
-            logger.debug(String.format("Skipped %s results, executed in %s ms", counter, duration));
-            return;
-        }
-
         while(rs.hasNext()){
             counter++;
             final QuerySolution qs = rs.next();
@@ -98,6 +66,10 @@ public class ResultWriterStream implements ContinuousListener {
     }
 
     public String getString(RDFNode node){
+        if(node == null){
+            return "null";
+        }
+
         if(dropLiteralDatatype){
             if(node.isLiteral()){
                 return  node.asLiteral().getLexicalForm();
