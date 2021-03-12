@@ -1,9 +1,11 @@
 package se.liu.ida.rspqlstar.store.engine;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.jena.query.ARQ;
 import org.apache.jena.query.QueryFactory;
+import org.apache.jena.riot.RDFParser;
 import org.apache.log4j.Logger;
-import se.liu.ida.rspqlstar.function.BayesianNetwork;
+import se.liu.ida.rdfstar.tools.parser.lang.LangTrigStar;
 import se.liu.ida.rspqlstar.function.Probability;
 import se.liu.ida.rspqlstar.lang.RSPQLStar;
 import se.liu.ida.rspqlstar.query.RSPQLStarQuery;
@@ -13,10 +15,15 @@ import se.liu.ida.rspqlstar.stream.StreamFromFile;
 import se.liu.ida.rspqlstar.util.TimeUtil;
 import se.liu.ida.rspqlstar.util.Utils;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Stream;
 
 public class RSPQLStarEngineManager {
     private static final Logger logger = Logger.getLogger(RSPQLStarEngineManager.class);
@@ -33,7 +40,21 @@ public class RSPQLStarEngineManager {
         RSPQLStarEngine.register();
         ARQ.init();
         Probability.init();
-        BayesianNetwork.init();
+    }
+
+    public void loadData(String path) {
+        try {
+            final ByteArrayInputStream bais = new ByteArrayInputStream(FileUtils.readFileToByteArray(new File(path)));
+            RDFParser.create()
+                    .base("http://base/")
+                    .source(bais)
+                    .checking(false)
+                    .lang(LangTrigStar.TRIGSTAR)
+                    .parse(sdg.getBaseDataset());
+        } catch (IOException e){
+            logger.error("Failed to read file: " + path + e);
+        }
+        System.out.println("Loaded: " + sdg.getBaseDataset().size());
     }
 
     public static void loadData(InputStream in){
@@ -57,6 +78,10 @@ public class RSPQLStarEngineManager {
         executor = Executors.newFixedThreadPool(executorThreadPool);
         TimeUtil.setOffset(new Date().getTime() - applicationTime);
         sdg = new StreamingDatasetGraph(applicationTime);
+    }
+
+    public StreamingDatasetGraph getSdg(){
+        return sdg;
     }
 
     /**
