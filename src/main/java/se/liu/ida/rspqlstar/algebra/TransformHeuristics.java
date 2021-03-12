@@ -84,9 +84,14 @@ public class TransformHeuristics extends TransformCopy {
             if(head == null){
                 head = op;
             } else {
-                head = OpJoin.create(head, op);
+                if(op instanceof OpExtend){
+                    head = ((OpExtend) op).copy(head);
+                } else {
+                    head = OpJoin.create(head, op);
+                }
             }
         }
+        head = OpJoin.create(OpTable.unit(), head);
         return head;
     }
 
