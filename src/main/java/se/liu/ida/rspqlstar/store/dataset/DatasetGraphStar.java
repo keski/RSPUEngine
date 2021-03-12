@@ -196,13 +196,14 @@ public class DatasetGraphStar extends AbstractDatasetGraph {
             iter = GSPO.iterateAll();
         }
 
-        if(!iter.hasNext()) {
-            logger.error("\n" + pattern + " no match");
-        }
+        //if(!iter.hasNext()) {
+        //    logger.debug("\n" + pattern + " no match");
+        //}
 
-        return iter;
         // TODO: for quad patterns where the same var appears more than once, we need  to filter the results
         //return new FilteredQuadIterator(iter, pattern);
+
+        return iter;
     }
 
     public String toString(){
