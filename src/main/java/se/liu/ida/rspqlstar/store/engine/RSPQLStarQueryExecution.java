@@ -48,15 +48,15 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
         checkNotClosed();
         if (!query.isSelectType()) {
             throw new QueryExecException("Wrong query type: " + query);
-        } else {
-            try {
-                final ResultSet rs = execResultSet();
-                return new ResultSetCheckCondition(rs, this);
-            } catch (Exception e){
-                logger.error(e.getMessage());
-                throw e;
-            }
         }
+        try {
+            final ResultSet rs = execResultSet();
+            return new ResultSetCheckCondition(rs, this);
+        } catch (Exception e){
+            logger.error(e.getMessage());
+            throw e;
+        }
+
     }
 
     /**
@@ -118,7 +118,7 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
                     logger.info(String.format("Wait for execution: %s ms", sleep));
                     sdg.setTime(nextExecution);
                     final RSPQLStarQueryExecution exec = new RSPQLStarQueryExecution(query, sdg);
-                    listener.push(exec.execSelect(), TimeUtil.getNanoTime());
+                    listener.push(exec.execSelect(), TimeUtil.getTime());
                     exec.close();
                     nextExecution += query.getComputedEvery();
                 }
