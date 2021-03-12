@@ -23,18 +23,16 @@ import java.util.Iterator;
 import java.util.List;
 
 public class RSPQLStarAlgebraGenerator extends AlgebraGenerator {
-    private final Logger logger = Logger.getLogger(RSPQLStarAlgebraGenerator.class);
-    private boolean fixedFilterPosition;
-    public static Node timePredicate;
+    private final static Logger logger = Logger.getLogger(RSPQLStarAlgebraGenerator.class);
     private Context context;
     private int subQueryDepth;
+    public static boolean PULL_RSPU_FILTERS = false;
 
     public RSPQLStarAlgebraGenerator(){
         super();
     }
 
     public RSPQLStarAlgebraGenerator(Context context, int depth) {
-        this.fixedFilterPosition = false;
         this.context = context;
         this.subQueryDepth = depth;
     }
@@ -53,16 +51,15 @@ public class RSPQLStarAlgebraGenerator extends AlgebraGenerator {
     }
 
     protected static Op optimize(Op op) {
-        //op = Transformer.transform(new RSPQLStarTransform(), op);
-        //System.err.println(op);
-        //op = Transformer.transform(new TransformSplitWindow(), op);
-
-        op = Transformer.transform(new TransformStar(), op);
-        op = Transformer.transform(new TransformFlatten(), op);
-
-        //op = Transformer.transform(new TransformHeuristics(timePredicate), op);
-        //op = Transformer.transform(new TransformFilterPlacement(), op);
-        //System.err.println(op);
+        try {
+            op = Transformer.transform(new TransformStar(), op);
+            // This does not follow the ARQ standard procedure but instead iterates in a top down manner
+            op = TransformFlatten.apply(op);
+            op = TransformHeuristics.createJoinTree((OpSequence) op);
+            logger.debug(op);
+        } catch (Exception e){
+            logger.error(e);
+        }
         return op;
     }
 
