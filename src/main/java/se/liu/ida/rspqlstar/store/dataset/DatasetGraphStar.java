@@ -100,7 +100,8 @@ public class DatasetGraphStar extends AbstractDatasetGraph {
     }
 
     private IdBasedQuad addQuad(Quad quad) {
-        final Node graph = quad.getGraph();
+        final Node graph = quad.getGraph() == null ? Quad.defaultGraphNodeGenerated : quad.getGraph();
+
         final Node subject = quad.getSubject();
         final Node predicate = quad.getPredicate();
         final Node object = quad.getObject();
