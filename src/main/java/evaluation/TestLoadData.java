@@ -28,7 +28,7 @@ public class TestLoadData {
         manager.registerStreamFromFile("resources/data/ox2.trigstar", "http://example.org/ox");
 
         // Activate H5?
-        RSPQLStarAlgebraGenerator.PULL_RSPU_FILTERS = false;
+        RSPQLStarAlgebraGenerator.PULL_RSPU_FILTERS = true;
 
         String query = new String(Files.readAllBytes(Paths.get("resources/test.rspqlstar")));
 
