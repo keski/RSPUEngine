@@ -1,0 +1,14 @@
+BASE <http://base/>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX rspu: <http://w3id.org/rsp/rspu#>
+REGISTER STREAM <test> COMPUTED EVERY PT1S AS
+SELECT ?obs ?value ?pdf
+FROM NAMED WINDOW <w> ON <http://example.org/ox> [RANGE PT1S STEP PT1S]
+WHERE {
+    WINDOW <w> {
+        GRAPH ?g {
+            ?obs sosa:hasSimpleResult ?value .
+            BIND(?value + 1 AS ?pdf)
+        }
+    }
+}
