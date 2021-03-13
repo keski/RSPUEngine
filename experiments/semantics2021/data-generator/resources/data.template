@@ -1,0 +1,39 @@
+@prefix rspu:  <http://w3id.org/rsp/rspu#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sosa: <http://www.w3.org/ns/sosa/> .
+@prefix : <http://example.org/ontology/> .
+@base <http://example.org/data/> .
+
+% for i in range(data["number_of_locations"]):
+<location/${i}> rdf:type sosa:FeatureOfInterest, :TunnelSector ;
+    rdfs:label "Tunnel segment ${i}" .
+
+<temperature/${i}> rdf:type sosa:ObservableProperty;
+    rdfs:label "Temperature at tunnel sector ${i}" .
+
+<oxygen/${i}> rdf:type sosa:ObservableProperty ;
+    rdfs:label "Oxygen concentration at tunnel sector/${i}" .
+
+% endfor
+
+% for i in range(data["number_of_locations"]):
+<sensor/OxygenSensorType1#${i}> rdf:type sosa:Sensor, :OxygenSensor1 ;
+  sosa:observes <oxygen/${i}> ;
+  rspu:measurementUncertainty "${data["ox_sensor_mu"]()}"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/${i}> .
+
+<sensor/TemperatureSensorType1#${i}> rdf:type sosa:Sensor, :TemperatureSensor1 ;
+  sosa:observes <temperature/${i}> ;
+  rspu:measurementUncertainty "${data["temp_sensor_mu"]()}"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/${i}> .
+
+<sensor/OxygenSensorType2#${i}> rdf:type sosa:Sensor, :OxygenSensor2 ;
+  sosa:observes <oxygen/${i}> ;
+  sosa:hasFeatureOfInterest <location/${i}> .
+
+<sensor/TemperatureSensorType2#${i}> rdf:type sosa:Sensor, :TemperatureSensor2 ;
+  sosa:observes <temperature/${i}> ;
+  sosa:hasFeatureOfInterest <location/${i}> .
+
+% endfor
