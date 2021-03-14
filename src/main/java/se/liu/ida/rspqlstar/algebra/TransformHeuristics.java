@@ -15,12 +15,10 @@ import se.liu.ida.rdfstar.tools.sparqlstar.lang.Node_TripleStarPattern;
 import se.liu.ida.rspqlstar.algebra.op.OpExtendQuad;
 import se.liu.ida.rspqlstar.algebra.op.OpWindow;
 import se.liu.ida.rspqlstar.function.Probability;
+import sun.tools.jconsole.JConsole;
 
 import javax.xml.soap.Node;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * This transformer reorders the query and creates a join tree based using a heuristics based on selectivity.
@@ -38,76 +36,103 @@ import java.util.Set;
 
 public class TransformHeuristics extends TransformCopy {
 
-    public static Op createJoinTree(OpSequence opSequence){
+    public static Op createJoinTree(OpSequence opSequence) throws Exception {
+        List<Op> unusedOps = opSequence.getElements();
+        List<OpFilter> opFilters = getOpFilters(unusedOps);
         Set<String> vars = new HashSet<>();
-        Op tree = createJoinTree(opSequence, vars);
-        return tree;
+
+        Op joinTree = createJoinTree(unusedOps, opFilters, vars);
+        joinTree = applyFilters(joinTree, opFilters, vars, false);
+
+        if(unusedOps.size() > 0 || opFilters.size() > 0){
+            System.err.println(joinTree);
+            System.err.println("Missing:");
+            System.err.println(unusedOps);
+            System.err.println(opFilters);
+            throw new Exception("Failed to create a consistent JOIN tree!");
+        }
+        return joinTree;
     }
 
-    public static Op createJoinTree(OpSequence opSequence, Set<String> vars){
-        Op head = null;
-        List<Op> unusedOps = opSequence.getElements();
-        while(unusedOps.size() > 0){
-            int index = indexWithHighestSelectivity(unusedOps, vars);
-            Op op = unusedOps.remove(index);
-            if(op instanceof OpTable){
-                continue;
-            }
-            vars.addAll(extractVariables(op));
-            // When all GSPO patterns have been handled, create the join trees for the window clauses
-            if(op instanceof OpWindow){
-                OpWindow opWindow = (OpWindow) op;
-                OpSequence windowOpSequence = (OpSequence) opWindow.getSubOp();
-
-                // Check if any filters should be inserted here
-                for(int i=0; i < unusedOps.size();){
-                    Op op2 = unusedOps.get(0);
-                    if(op2 instanceof OpFilter){
-                        Set<String> filterVars = extractVariables(op2);
-                        Set<String> windowVars = extractVariables(op);
-                        windowVars.addAll(vars);
-                        if(windowVars.containsAll(filterVars)){
-                            windowOpSequence.add(op2);
-                            unusedOps.remove(op2);
-                        } else {
-                            i++;
-                        }
-                    } else {
-                        i++;
-                    }
-                }
-                // create join tree
-                Op op2 = createJoinTree(windowOpSequence, vars);
-                op = ((OpWindow) op).copy(op2);
-            }
-
-            if(head == null){
-                head = op;
+    public static List<OpFilter> getOpFilters(List<Op> ops){
+        List<OpFilter> opFilters = new ArrayList<>();
+        int i = 0;
+        while(i < ops.size()){
+            if(ops.get(i) instanceof OpFilter){
+                opFilters.add((OpFilter) ops.get(i));
+                ops.remove(ops.get(i));
             } else {
-                if(op instanceof OpExtend){
-                    head = ((OpExtend) op).copy(head);
-                } else {
-                    head = OpJoin.create(head, op);
-                }
+                i++;
             }
         }
-        head = OpJoin.create(OpTable.unit(), head);
+        return opFilters;
+    }
+
+    public static Op applyFilters(Op head, List<OpFilter> opFilters, Set<String> vars, boolean skipRSPU){
+        int i = 0;
+        while(i < opFilters.size()){
+            OpFilter opFilter = opFilters.get(i);
+            if(skipRSPU && containsRSPUFunction(opFilter)){
+                i++;
+                continue;
+            }
+
+            if(vars.containsAll(extractVariables(opFilter))){
+                head = OpFilter.filterBy((opFilter).getExprs(), head);
+                opFilters.remove(opFilter);
+            } else {
+                i++;
+            }
+        }
         return head;
     }
 
-    public static int indexWithHighestSelectivity(List<Op> ops, Set<String> vars){
-        // selectivity is defined on quad pattern level, using the quad with highest selectivity
-        int index = 0;
-        int high = -1;
-        for(int i=0; i < ops.size(); i++) {
-            int selectivity = getSelectivity(ops.get(i), vars);
-            if(selectivity > high){
-                index = i;
-                high = selectivity;
+    public static Op createJoinTree(List<Op> unusedOps, List<OpFilter> opFilters, Set<String> vars){
+        Op head = null;
+        while(true){
+            head = applyFilters(head, opFilters, vars, RSPQLStarAlgebraGenerator.PULL_RSPU_FILTERS);
+
+            Op op = opWithHighestSelectivity(unusedOps, vars);
+            if(op == null){
+                break;
+            }
+            unusedOps.remove(op);
+
+            if(op instanceof OpWindow) {
+                OpWindow opWindow = (OpWindow) op;
+                List<Op> windowOpSequence = ((OpSequence) opWindow.getSubOp()).getElements();
+                op = opWindow.copy(createJoinTree(windowOpSequence, opFilters, vars));
+            }
+            vars.addAll(extractVariables(op));
+
+            if(op instanceof OpTable){
+                continue;
+            } else if(head == null){
+                head = op;
+            } else if(op instanceof OpExtend){ // add head inside extend
+                head = ((OpExtend) op).copy(head);
+            } else {
+                head = OpJoin.create(head, op); // join
             }
         }
-        return index;
+        return head;
     }
+
+    public static Op opWithHighestSelectivity(List<Op> ops, Set<String> vars){
+        // selectivity is defined on quad pattern level, using the quad with highest selectivity
+        Op highOp = null;
+        int maxSelectivity = -1;
+        for(Op op: ops) {
+            int selectivity = getSelectivity(op, vars);
+            if(selectivity > maxSelectivity){
+                highOp = op;
+                maxSelectivity = selectivity;
+            }
+        }
+        return highOp;
+    }
+
+
 
     public static int getSelectivity(Op op, Set<String> vars){
         int selectivity = 0;
@@ -115,15 +140,6 @@ public class TransformHeuristics extends TransformCopy {
             selectivity = getSelectivity(((OpQuad) op).getQuad(), vars);
         } else if(op instanceof OpTable){
             selectivity = 1000; // insert in order
-        } else if(op instanceof OpFilter){
-            OpFilter opFilter = (OpFilter) op;
-            if(RSPQLStarAlgebraGenerator.PULL_RSPU_FILTERS && containsRSPUFunction(opFilter)){
-                selectivity = -1;
-            } else if(vars.containsAll(extractVariables(opFilter))){
-                selectivity = 1000; // apply filter!
-            } else {
-                selectivity = -1; // cannot yet be applied, vars missing!
-            }
         }
 
         // Increase selectivity by a factor 10 if the op joins with previous vars (i.e., avoid unions)
@@ -261,9 +277,9 @@ public class TransformHeuristics extends TransformCopy {
 
             // check function
             if(exprFunction.getFunctionIRI() != null && exprFunction.getFunctionIRI().startsWith(Probability.ns)){
-                System.err.println("Found RSPU function " + exprFunction.getFunctionIRI());
                 return true;
             }
+
             // check args
             for(Expr arg: exprFunction.getArgs()){
                 if(containsRSPUFunction(arg)){
