@@ -79,7 +79,7 @@ public class TransformHeuristics extends TransformCopy {
             }
 
             if(vars.containsAll(extractVariables(opFilter))){
-                head = OpFilter.filterBy((opFilter).getExprs(), head);
+                head = OpFilter.filterBy((opFilter).getExprs(), OpJoin.create(OpTable.unit(), head));
                 opFilters.remove(opFilter);
             } else {
                 i++;
@@ -116,6 +116,7 @@ public class TransformHeuristics extends TransformCopy {
                 //OpExtend opExtend = ((OpExtendQuad) op).getSubOp();
                 //head = new OpExtendQuad((OpExtend) opExtend.copy(head), ((OpExtendQuad) op).getGraph());
                 head = OpJoin.create(head, op); // join
+                //System.err.println(((OpExtendQuad) op).getQuad());
             } else {
                 head = OpJoin.create(head, op); // join
             }
@@ -141,8 +142,18 @@ public class TransformHeuristics extends TransformCopy {
         int selectivity = 0;
         if(op instanceof OpQuad){
             selectivity = getSelectivity(((OpQuad) op).getQuad(), vars);
+        } else if(op instanceof OpExtend){
+            OpExtend opExtend = (OpExtend) op;
+            if(vars.containsAll(extractVariables(opExtend))){
+                selectivity = 1000;
+            }
         } else if(op instanceof OpExtendQuad){
-            selectivity = 1000;
+            OpExtendQuad opExtendQuad = (OpExtendQuad) op;
+            if(vars.containsAll(extractVariables(opExtendQuad))){
+                selectivity = 1000;
+            }
+            //System.err.println(opExtendQuad.getSubOp().getVarExprList().getExprs().values().iterator().next());
+            //selectivity = getSelectivity((opExtendQuad.getSubOp(), vars);
         } else if(op instanceof OpTable){
             selectivity = 1000; // insert in order
         }
@@ -239,7 +250,7 @@ public class TransformHeuristics extends TransformCopy {
             Var v = opExtendQuad.getSubOp().getVarExprList().getVars().get(0);
             NodeValueNode n = (NodeValueNode) opExtendQuad.getSubOp().getVarExprList().getExpr(v);
             Node_TripleStarPattern tsp = (Node_TripleStarPattern) n.asNode();
-            return extractVariables(new Quad(null, tsp.get()));
+            vars.addAll(extractVariables(new Quad(null, tsp.get())));
         } else if(op instanceof OpTable) {
             // pass
         } else {
@@ -282,7 +293,6 @@ public class TransformHeuristics extends TransformCopy {
     public static boolean containsRSPUFunction(Expr expr){
         if(expr.isFunction()){
             ExprFunction exprFunction = expr.getFunction();
-
             // check function
             if(exprFunction.getFunctionIRI() != null && exprFunction.getFunctionIRI().startsWith(Probability.ns)){
                 return true;

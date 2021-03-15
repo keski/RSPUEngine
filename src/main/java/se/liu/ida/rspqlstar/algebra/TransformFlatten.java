@@ -60,7 +60,7 @@ public class TransformFlatten {
             listOfOps.add(opWindow.copy(subOpSequence));
         } else if (op instanceof OpExtend) {
             OpExtend opExtend = (OpExtend) op;
-            listOfOps.add(opExtend.copy(OpTable.empty()));
+            listOfOps.add(opExtend.copy(OpTable.unit()));
             for(Op op2: apply(opExtend.getSubOp()).getElements()){
                 if(op2 instanceof OpTable){
                     continue;
