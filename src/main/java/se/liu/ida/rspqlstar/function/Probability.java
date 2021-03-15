@@ -7,7 +7,11 @@ import org.apache.jena.sparql.function.FunctionBase2;
 import org.apache.jena.sparql.function.FunctionBase3;
 import org.apache.jena.sparql.function.FunctionFactory;
 import org.apache.jena.sparql.function.FunctionRegistry;
+import se.liu.ida.rspqlstar.algebra.RSPQLStarAlgebraGenerator;
 import se.liu.ida.rspqlstar.datatypes.ProbabilityDistribution;
+import se.liu.ida.rspqlstar.stream.ConstructStream;
+
+import java.util.function.Consumer;
 
 public class Probability {
     private static final double MIN_VALUE = 0.0000001; // Double.MIN_VALUE?
@@ -27,35 +31,80 @@ public class Probability {
     public static FunctionFactory lessThan = s -> new FunctionBase2() { // less than or equal
         @Override
         public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            return Probability.lessThan(nv1, nv2, false);
+            if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
+                LazyNodeValue value = new LazyNodeValue("lessThan", new NodeValue[]{nv1, nv2});
+                final Consumer<NodeValue[]> f = (args) -> {
+                    LazyNodeValue.cache.put(value.toString(), Probability.lessThan(args[0], args[1], false));
+                };
+                value.setConsumer(f);
+                return value;
+            } else {
+                return Probability.lessThan(nv1, nv2, false);
+            }
         }
     };
 
     public static FunctionFactory lessThanOrEqual = s -> new FunctionBase2() { // less than or equal
         @Override
         public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            return Probability.lessThan(nv1, nv2, true);
+            if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
+                LazyNodeValue value = new LazyNodeValue("lessThanOrEqual", new NodeValue[]{nv1, nv2});
+                final Consumer<NodeValue[]> f = (args) -> {
+                    LazyNodeValue.cache.put(value.toString(), Probability.lessThan(args[0], args[1], true));
+                };
+                value.setConsumer(f);
+                return value;
+            } else {
+                return Probability.lessThan(nv1, nv2, true);
+            }
         }
     };
 
     public static FunctionFactory greaterThan = s -> new FunctionBase2() { // greater than
         @Override
         public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            return Probability.greaterThan(nv1, nv2, false);
+            if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
+                LazyNodeValue value = new LazyNodeValue("greaterThan", new NodeValue[]{nv1, nv2});
+                final Consumer<NodeValue[]> f = (args) -> {
+                    LazyNodeValue.cache.put(value.toString(), Probability.greaterThan(args[0], args[1], false));
+                };
+                value.setConsumer(f);
+                return value;
+            } else {
+                return Probability.greaterThan(nv1, nv2, false);
+            }
         }
     };
 
     public static FunctionFactory greaterThanOrEqual = s -> new FunctionBase2() { // greater than or equal
         @Override
         public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            return Probability.greaterThan(nv1, nv2, true);
+            if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
+                LazyNodeValue value = new LazyNodeValue("greaterThanOrEqual", new NodeValue[]{nv1, nv2});
+                final Consumer<NodeValue[]> f = (args) -> {
+                    LazyNodeValue.cache.put(value.toString(), Probability.greaterThan(args[0], args[1], true));
+                };
+                value.setConsumer(f);
+                return value;
+            } else {
+                return Probability.greaterThan(nv1, nv2, true);
+            }
         }
     };
 
     public static FunctionFactory between = s -> new FunctionBase3() {
         @Override
         public NodeValue exec(NodeValue nv1, NodeValue nv2, NodeValue nv3) {
-            return Probability.between(nv1, nv2, nv3);
+            if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
+                LazyNodeValue value = new LazyNodeValue("between", new NodeValue[]{nv1, nv2});
+                final Consumer<NodeValue[]> f = (args) -> {
+                    LazyNodeValue.cache.put(value.toString(), Probability.between(args[0], args[1], args[2]));
+                };
+                value.setConsumer(f);
+                return value;
+            } else {
+                return Probability.between(nv1, nv2, nv3);
+            }
         }
     };
 
@@ -63,14 +112,32 @@ public class Probability {
     public static FunctionFactory add = s -> new FunctionBase2() {
         @Override
         public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            return Probability.add(nv1, nv2);
+            if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
+                LazyNodeValue value = new LazyNodeValue("add", new NodeValue[]{nv1, nv2});
+                final Consumer<NodeValue[]> f = (args) -> {
+                    LazyNodeValue.cache.put(value.toString(), Probability.add(args[0], args[1]));
+                };
+                value.setConsumer(f);
+                return value;
+            } else {
+                return Probability.add(nv1, nv2);
+            }
         }
     };
 
     public static FunctionFactory subtract = s -> new FunctionBase2() {
         @Override
         public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            return Probability.subtract(nv1, nv2);
+            if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
+                LazyNodeValue value = new LazyNodeValue("subtract", new NodeValue[]{nv1, nv2});
+                final Consumer<NodeValue[]> f = (args) -> {
+                    LazyNodeValue.cache.put(value.toString(), Probability.subtract(args[0], args[1]));
+                };
+                value.setConsumer(f);
+                return value;
+            } else {
+                return Probability.subtract(nv1, nv2);
+            }
         }
     };
 
@@ -103,7 +170,7 @@ public class Probability {
      * @param nv2
      * @return
      */
-    private static NodeValue add(NodeValue nv1, NodeValue nv2){
+    public static NodeValue add(NodeValue nv1, NodeValue nv2) {
         final Object v1 = getLiteral(nv1);
         final Object v2 = getLiteral(nv2);
 

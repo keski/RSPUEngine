@@ -29,7 +29,7 @@ public class TestLoadData {
 
         // Activate H5?
         RSPQLStarAlgebraGenerator.PULL_RSPU_FILTERS = true;
-        RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE = false;
+        RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE = true;
 
         String query = new String(Files.readAllBytes(Paths.get("resources/test.rspqlstar")));
 
