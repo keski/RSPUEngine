@@ -2,19 +2,13 @@ package se.liu.ida.rspqlstar.store.engine;
 
 import org.apache.jena.query.*;
 import org.apache.jena.rdf.model.ModelFactory;
-import org.apache.jena.riot.*;
-import org.apache.jena.riot.resultset.ResultSetLang;
 import org.apache.jena.sparql.engine.*;
 import org.apache.log4j.Logger;
+import se.liu.ida.rspqlstar.function.LazyNodeValue;
 import se.liu.ida.rspqlstar.query.RSPQLStarQuery;
 import se.liu.ida.rspqlstar.store.dataset.StreamingDatasetGraph;
 import se.liu.ida.rspqlstar.stream.ContinuousListener;
 import se.liu.ida.rspqlstar.util.TimeUtil;
-
-import java.io.PrintStream;
-import java.sql.Time;
-import java.util.ArrayList;
-import java.util.List;
 
 public class RSPQLStarQueryExecution extends QueryExecutionBase {
     private final Logger logger = Logger.getLogger(RSPQLStarQueryExecution.class);
@@ -25,6 +19,7 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
     private boolean stop = false;
     public boolean isRunning = true;
     private ContinuousListener listener = null;
+    public static boolean CLEAR_CACHE_BETWEEN_EXECUTIONS = false;
 
     public RSPQLStarQueryExecution(RSPQLStarQuery query, StreamingDatasetGraph sdg){
         this(query, DatasetFactory.wrap(sdg));
@@ -121,6 +116,9 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
                     listener.push(exec.execSelect(), TimeUtil.getTime());
                     exec.close();
                     nextExecution += query.getComputedEvery();
+                    if(CLEAR_CACHE_BETWEEN_EXECUTIONS){
+                        LazyNodeValue.cache.clear();
+                    }
                 }
                 isRunning = false;
             } catch (Exception e){
