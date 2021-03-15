@@ -1,6 +1,5 @@
 package se.liu.ida.rspqlstar.algebra;
 
-import org.apache.jena.graph.Triple;
 import org.apache.jena.sparql.algebra.Op;
 import org.apache.jena.sparql.algebra.TransformCopy;
 import org.apache.jena.sparql.algebra.op.*;
@@ -9,16 +8,16 @@ import org.apache.jena.sparql.core.QuadPattern;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.expr.Expr;
 import org.apache.jena.sparql.expr.ExprFunction;
-import org.apache.jena.sparql.expr.ExprList;
 import org.apache.jena.sparql.expr.nodevalue.NodeValueNode;
 import se.liu.ida.rdfstar.tools.sparqlstar.lang.Node_TripleStarPattern;
 import se.liu.ida.rspqlstar.algebra.op.OpExtendQuad;
 import se.liu.ida.rspqlstar.algebra.op.OpWindow;
 import se.liu.ida.rspqlstar.function.Probability;
-import sun.tools.jconsole.JConsole;
 
-import javax.xml.soap.Node;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * This transformer reorders the query and creates a join tree based using a heuristics based on selectivity.
@@ -34,22 +33,16 @@ import java.util.*;
  *      window < (g,s,p,o)
  */
 
-public class TransformHeuristics extends TransformCopy {
+public class TransformHeuristics2 extends TransformCopy {
 
-    /**
-     * Create a join tree (represented as a sequence of operators executed top down.
-     * @param opSequence
-     * @return
-     * @throws Exception
-     */
     public static Op createJoinTree(OpSequence opSequence) throws Exception {
         List<Op> unusedOps = opSequence.getElements();
         List<OpFilter> opFilters = getOpFilters(unusedOps);
         List<OpExtend> opExtends = getOpExtends(unusedOps);
         Set<String> vars = new HashSet<>();
 
-        OpSequence joinTree = createJoinTree(unusedOps, opFilters, opExtends, vars);
-        applyFilters(joinTree, opFilters, vars, false);
+        Op joinTree = createJoinTree(unusedOps, opFilters, opExtends, vars);
+        joinTree = applyFilters(joinTree, opFilters, vars, false);
 
         if(unusedOps.size() > 0 || opFilters.size() > 0 || opExtends.size() > 0){
             System.err.println(joinTree);
@@ -77,7 +70,7 @@ public class TransformHeuristics extends TransformCopy {
         return opFilters;
     }
 
-    public static void applyFilters(OpSequence head, List<OpFilter> opFilters, Set<String> vars, boolean skipRSPU){
+    public static Op applyFilters(Op head, List<OpFilter> opFilters, Set<String> vars, boolean skipRSPU){
         int i = 0;
         while(i < opFilters.size()){
             OpFilter opFilter = opFilters.get(i);
@@ -87,12 +80,13 @@ public class TransformHeuristics extends TransformCopy {
             }
 
             if(vars.containsAll(extractVariables(opFilter))){
-                head.add(opFilter);
+                head = OpFilter.filterBy((opFilter).getExprs(), OpJoin.create(OpTable.unit(), head));
                 opFilters.remove(opFilter);
             } else {
                 i++;
             }
         }
+        return head;
     }
 
     public static List<OpExtend> getOpExtends(List<Op> ops){
@@ -109,12 +103,12 @@ public class TransformHeuristics extends TransformCopy {
         return opExtends;
     }
 
-    public static void applyExtends(OpSequence head, List<OpExtend> opExtends, Set<String> vars){
+    public static Op applyExtends(Op head, List<OpExtend> opExtends, Set<String> vars){
         int i = 0;
         while(i < opExtends.size()){
             OpExtend opExtend = opExtends.get(i);
             if(vars.containsAll(extractVariables(opExtend))){
-                head.add(opExtend);
+                head = opExtend.copy(head);
                 opExtends.remove(opExtend);
                 Var v = opExtend.getVarExprList().getVars().get(0);
                 vars.add(v.getVarName());
@@ -123,35 +117,38 @@ public class TransformHeuristics extends TransformCopy {
                 i++;
             }
         }
+        return head;
     }
 
-    public static void applyFiltersAndExtends(OpSequence head, List<OpFilter> opFilters, List<OpExtend> opExtends, Set<String> vars){
+    public static Op applyFiltersAndExtends(Op head, List<OpFilter> opFilters, List<OpExtend> opExtends, Set<String> vars){
+        head = head == null ? OpTable.unit() : head;
         boolean updated = true;
         while(updated) {
             int size = opFilters.size() + opExtends.size();
-            applyFilters(head, opFilters, vars, RSPQLStarAlgebraGenerator.PULL_RSPU_FILTERS);
-            applyExtends(head, opExtends, vars);
+            head = applyFilters(head, opFilters, vars, RSPQLStarAlgebraGenerator.PULL_RSPU_FILTERS);
+            head = applyExtends(head, opExtends, vars);
             updated = size < opFilters.size() + opExtends.size();
         }
+        return head;
     }
 
-    public static OpSequence createJoinTree(List<Op> unusedOps, List<OpFilter> opFilters, List<OpExtend> opExtends, Set<String> vars){
-        OpSequence head = OpSequence.create();
+    public static Op createJoinTree(List<Op> unusedOps, List<OpFilter> opFilters, List<OpExtend> opExtends, Set<String> vars){
+        Op head = null;
         while(true){
             Op op = opWithHighestSelectivity(unusedOps, vars);
+
             unusedOps.remove(op);
 
             if(op instanceof OpWindow) {
                 OpWindow opWindow = (OpWindow) op;
                 List<Op> windowOpSequence = ((OpSequence) opWindow.getSubOp()).getElements();
                 op = opWindow.copy(createJoinTree(windowOpSequence, opFilters, opExtends, vars));
-                head.add(op);
+                head = head == null ? op : OpJoin.create(head, op);
                 continue;
             }
 
             // apply all filters and extends to the op
-            applyFiltersAndExtends(head, opFilters, opExtends, vars);
-
+            head = applyFiltersAndExtends(head, opFilters, opExtends, vars);
             if(op == null){
                 break;
             }
@@ -159,11 +156,15 @@ public class TransformHeuristics extends TransformCopy {
             if(op instanceof OpTable){
                 continue;
             } else if(op instanceof OpExtendQuad){
-                head.add(op);
+                head = OpJoin.create(head, op); // join
                 Var v = ((OpExtendQuad) op).getSubOp().getVarExprList().getVars().get(0);
                 vars.add(v.getName());
             } else {
-                head.add(op);
+                if(head == null){
+                    head = op;
+                } else {
+                    head = OpJoin.create(head, op); // join
+                }
                 vars.addAll(extractVariables(op));
             }
         }
