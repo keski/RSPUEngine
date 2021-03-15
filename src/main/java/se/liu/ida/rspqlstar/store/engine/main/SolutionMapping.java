@@ -1,5 +1,6 @@
 package se.liu.ida.rspqlstar.store.engine.main;
 
+import se.liu.ida.rspqlstar.store.dictionary.VarDictionary;
 import se.liu.ida.rspqlstar.store.engine.main.pattern.Key;
 
 /**
@@ -49,7 +50,7 @@ public class SolutionMapping {
         for (int i = 0; i < map.length; ++i) {
             if (map[i] != SolutionMapping.UNBOUND) {
                 Key key = map[i];
-                s += "#" + String.valueOf(i) + "->" + key.toString() + ", ";
+                s += "#" + i + "(" + VarDictionary.get().getVar(i) + ")" + "->" + key.toString() + ", ";
             }
         }
 
