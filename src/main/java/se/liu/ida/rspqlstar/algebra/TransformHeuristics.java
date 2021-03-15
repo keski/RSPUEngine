@@ -51,7 +51,8 @@ public class TransformHeuristics extends TransformCopy {
             System.err.println(opFilters);
             throw new Exception("Failed to create a consistent JOIN tree!");
         }
-        return joinTree;
+
+        return OpJoin.create(OpTable.unit(), joinTree);
     }
 
     public static List<OpFilter> getOpFilters(List<Op> ops){
@@ -111,6 +112,10 @@ public class TransformHeuristics extends TransformCopy {
                 head = op;
             } else if(op instanceof OpExtend){ // add head inside extend
                 head = ((OpExtend) op).copy(head);
+            } else if(op instanceof OpExtendQuad){
+                //OpExtend opExtend = ((OpExtendQuad) op).getSubOp();
+                //head = new OpExtendQuad((OpExtend) opExtend.copy(head), ((OpExtendQuad) op).getGraph());
+                head = OpJoin.create(head, op); // join
             } else {
                 head = OpJoin.create(head, op); // join
             }
@@ -132,12 +137,12 @@ public class TransformHeuristics extends TransformCopy {
         return highOp;
     }
 
-
-
     public static int getSelectivity(Op op, Set<String> vars){
         int selectivity = 0;
         if(op instanceof OpQuad){
             selectivity = getSelectivity(((OpQuad) op).getQuad(), vars);
+        } else if(op instanceof OpExtendQuad){
+            selectivity = 1000;
         } else if(op instanceof OpTable){
             selectivity = 1000; // insert in order
         }
@@ -199,7 +204,10 @@ public class TransformHeuristics extends TransformCopy {
      */
     public static Set<String> extractVariables(Op op) {
         Set<String> vars = new HashSet<>();
-        if(op instanceof OpWindow){
+        if(op instanceof OpJoin){
+            vars.addAll(extractVariables(((OpJoin) op).getLeft()));
+            vars.addAll(extractVariables(((OpJoin) op).getLeft()));
+        } else if(op instanceof OpWindow){
             vars = extractVariables(((OpWindow) op).getSubOp());
         } else if(op instanceof OpSequence){
             OpSequence opSequence = (OpSequence) op;
