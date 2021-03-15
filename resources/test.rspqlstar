@@ -16,6 +16,7 @@ WHERE {
             FILTER(rspu:lessThan(?mu, 0) + 1 >= 1)
             FILTER(rspu:lessThan(?mu, 0) - 1 <= 0)
             BIND(rspu:lessThan(?mu, 0) - 1 AS ?x)
+            ?ob ?a ?b .
         }
     }
 }

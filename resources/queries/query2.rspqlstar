@@ -1,0 +1,40 @@
+BASE <http://example.org/data/>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX rspu: <http://w3id.org/rsp/rspu#>
+PREFIX : <http://example.org/ontology/>
+
+REGISTER STREAM <test> COMPUTED EVERY PT2S AS
+SELECT ?value1 ?value2 (?value1 - ?value2 AS ?diff)
+FROM NAMED WINDOW <w1> ON <http://example.org/ox1> [RANGE PT10S STEP PT1S]
+FROM NAMED WINDOW <w2> ON <http://example.org/ox2> [RANGE PT10S STEP PT1S]
+WHERE {
+    ?sensor1 a :OxygenSensor1 ;
+        sosa:hasFeatureOfInterest ?foi ;
+        rspu:measurementUncertainty ?mu1 .
+    ?sensor2 a :OxygenSensor2 ;
+        sosa:hasFeatureOfInterest ?foi .
+
+    WINDOW <w1> {
+        GRAPH ?g1 {
+            ?o1 sosa:hasSimpleResult ?value1 ;
+                sosa:madeBySensor ?sensor1;
+                sosa:observedProperty ?property1 .
+        }
+    }
+    WINDOW <w2> {
+        GRAPH ?g2 {
+            ?o2 sosa:hasSimpleResult ?value2 ;
+                sosa:madeBySensor ?sensor2 ;
+                sosa:observedProperty ?property1 .
+            << ?o2 sosa:hasSimpleResult ?value2 >> rspu:measurementUncertainty ?mu2
+        }
+    }
+
+
+    FILTER(abs(?value1 - ?value2) < 0.01)
+    BIND(rspu:add(?mu1, ?value1) AS ?pdf1)
+    BIND(rspu:add(?mu2, ?value2) AS ?pdf2)
+    FILTER(rspu:lessThan(?pdf1, 0.18) > 0)
+    FILTER(rspu:lessThan(?pdf2, 0.18) > 0)
+
+}
