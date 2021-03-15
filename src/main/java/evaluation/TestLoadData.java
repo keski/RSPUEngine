@@ -2,6 +2,7 @@ package evaluation;
 
 import org.apache.log4j.Logger;
 import se.liu.ida.rspqlstar.algebra.RSPQLStarAlgebraGenerator;
+import se.liu.ida.rspqlstar.function.Probability;
 import se.liu.ida.rspqlstar.store.engine.RSPQLStarEngineManager;
 import se.liu.ida.rspqlstar.store.engine.RSPQLStarQueryExecution;
 import se.liu.ida.rspqlstar.stream.ResultWriterStream;
@@ -25,13 +26,18 @@ public class TestLoadData {
         final long applicationTime = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(refTime).getTime();
         final RSPQLStarEngineManager manager = new RSPQLStarEngineManager(applicationTime);
         manager.loadData("resources/data/static.trigstar");
-        manager.registerStreamFromFile("resources/data/ox2.trigstar", "http://example.org/ox");
+        manager.registerStreamFromFile("resources/data/ox1.trigstar", "http://example.org/ox1");
+        manager.registerStreamFromFile("resources/data/ox2.trigstar", "http://example.org/ox2");
+        manager.registerStreamFromFile("resources/data/temp1.trigstar", "http://example.org/temp1");
+        manager.registerStreamFromFile("resources/data/temp2.trigstar", "http://example.org/temp2");
 
         // Activate H5?
         RSPQLStarAlgebraGenerator.PULL_RSPU_FILTERS = true;
         RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE = true;
+        RSPQLStarQueryExecution.CLEAR_CACHE_BETWEEN_EXECUTIONS = true;
+        Probability.THROTTLE_EXECUTION = 1;
 
-        String query = new String(Files.readAllBytes(Paths.get("resources/test.rspqlstar")));
+        String query = new String(Files.readAllBytes(Paths.get("resources/queries/query2.rspqlstar")));
 
         final RSPQLStarQueryExecution q = manager.registerQuery(query);
 

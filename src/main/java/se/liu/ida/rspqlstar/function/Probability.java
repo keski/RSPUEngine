@@ -10,12 +10,14 @@ import org.apache.jena.sparql.function.FunctionRegistry;
 import se.liu.ida.rspqlstar.algebra.RSPQLStarAlgebraGenerator;
 import se.liu.ida.rspqlstar.datatypes.ProbabilityDistribution;
 import se.liu.ida.rspqlstar.stream.ConstructStream;
+import se.liu.ida.rspqlstar.util.TimeUtil;
 
 import java.util.function.Consumer;
 
 public class Probability {
     private static final double MIN_VALUE = 0.0000001; // Double.MIN_VALUE?
     public static final String ns = "http://w3id.org/rsp/rspu#";
+    public static long THROTTLE_EXECUTION = -1;
 
     public static void init(){
         // Probability distribution
@@ -34,6 +36,7 @@ public class Probability {
             if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
                 LazyNodeValue value = new LazyNodeValue("lessThan", new NodeValue[]{nv1, nv2});
                 final Consumer<NodeValue[]> f = (args) -> {
+                    TimeUtil.silentSleep(THROTTLE_EXECUTION);
                     LazyNodeValue.cache.put(value.toString(), Probability.lessThan(args[0], args[1], false));
                 };
                 value.setConsumer(f);
@@ -50,6 +53,7 @@ public class Probability {
             if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
                 LazyNodeValue value = new LazyNodeValue("lessThanOrEqual", new NodeValue[]{nv1, nv2});
                 final Consumer<NodeValue[]> f = (args) -> {
+                    TimeUtil.silentSleep(THROTTLE_EXECUTION);
                     LazyNodeValue.cache.put(value.toString(), Probability.lessThan(args[0], args[1], true));
                 };
                 value.setConsumer(f);
@@ -66,6 +70,7 @@ public class Probability {
             if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
                 LazyNodeValue value = new LazyNodeValue("greaterThan", new NodeValue[]{nv1, nv2});
                 final Consumer<NodeValue[]> f = (args) -> {
+                    TimeUtil.silentSleep(THROTTLE_EXECUTION);
                     LazyNodeValue.cache.put(value.toString(), Probability.greaterThan(args[0], args[1], false));
                 };
                 value.setConsumer(f);
@@ -80,6 +85,7 @@ public class Probability {
         @Override
         public NodeValue exec(NodeValue nv1, NodeValue nv2) {
             if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
+                TimeUtil.silentSleep(THROTTLE_EXECUTION);
                 LazyNodeValue value = new LazyNodeValue("greaterThanOrEqual", new NodeValue[]{nv1, nv2});
                 final Consumer<NodeValue[]> f = (args) -> {
                     LazyNodeValue.cache.put(value.toString(), Probability.greaterThan(args[0], args[1], true));
@@ -96,6 +102,7 @@ public class Probability {
         @Override
         public NodeValue exec(NodeValue nv1, NodeValue nv2, NodeValue nv3) {
             if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
+                TimeUtil.silentSleep(THROTTLE_EXECUTION);
                 LazyNodeValue value = new LazyNodeValue("between", new NodeValue[]{nv1, nv2});
                 final Consumer<NodeValue[]> f = (args) -> {
                     LazyNodeValue.cache.put(value.toString(), Probability.between(args[0], args[1], args[2]));
@@ -113,6 +120,7 @@ public class Probability {
         @Override
         public NodeValue exec(NodeValue nv1, NodeValue nv2) {
             if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
+                TimeUtil.silentSleep(THROTTLE_EXECUTION);
                 LazyNodeValue value = new LazyNodeValue("add", new NodeValue[]{nv1, nv2});
                 final Consumer<NodeValue[]> f = (args) -> {
                     LazyNodeValue.cache.put(value.toString(), Probability.add(args[0], args[1]));
@@ -129,6 +137,7 @@ public class Probability {
         @Override
         public NodeValue exec(NodeValue nv1, NodeValue nv2) {
             if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
+                TimeUtil.silentSleep(THROTTLE_EXECUTION);
                 LazyNodeValue value = new LazyNodeValue("subtract", new NodeValue[]{nv1, nv2});
                 final Consumer<NodeValue[]> f = (args) -> {
                     LazyNodeValue.cache.put(value.toString(), Probability.subtract(args[0], args[1]));
