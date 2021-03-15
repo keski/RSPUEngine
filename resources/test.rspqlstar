@@ -1,14 +1,18 @@
-BASE <http://base/>
+BASE <http://example.org/data/>
 PREFIX sosa: <http://www.w3.org/ns/sosa/>
 PREFIX rspu: <http://w3id.org/rsp/rspu#>
-REGISTER STREAM <test> COMPUTED EVERY PT1S AS
-SELECT ?obs ?value ?pdf
+REGISTER STREAM <test> COMPUTED EVERY PT2S AS
+SELECT ?sensor
 FROM NAMED WINDOW <w> ON <http://example.org/ox> [RANGE PT1S STEP PT1S]
 WHERE {
+    ?sensor a ?something .
     WINDOW <w> {
         GRAPH ?g {
-            ?obs sosa:hasSimpleResult ?value .
-            BIND(?value + 1 AS ?pdf)
+           ?obs sosa:hasSimpleResult ?value .
+            << ?obs sosa:hasSimpleResult ?value >> ?p ?mu .
+            #?obs2 ?prop ?sensor
+            FILTER(?sensor = <sensor/OxygenSensorType2#0>)
+            BIND(rspu:add(?mu, ?value) AS ?pdf)
         }
     }
 }

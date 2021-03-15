@@ -24,7 +24,7 @@ public class TestLoadData {
         String refTime = "2021-03-01T10:00:00";
         final long applicationTime = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(refTime).getTime();
         final RSPQLStarEngineManager manager = new RSPQLStarEngineManager(applicationTime);
-        manager.loadData("resources/data/static-test.trigstar");
+        manager.loadData("resources/data/static.trigstar");
         manager.registerStreamFromFile("resources/data/ox2.trigstar", "http://example.org/ox");
 
         // Activate H5?

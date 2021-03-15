@@ -1,5 +1,5 @@
 GRAPH <graph/${data["type"]}_${data["loc_count"]}#${data["obs_count"]}> {
-    <observation/${data["type"]}_${data["loc_count"]}#${data["obs_count"]}> rdf:type sosa:Observation ;
+    <observation/${data["type"]}#${data["loc_count"]}#${data["obs_count"]}> rdf:type sosa:Observation ;
         sosa:observedProperty <${data["prop"]}/${data["loc_count"]}> ;
         sosa:madeBySensor <sensor/${data["type"]}#${data["loc_count"]}> ;
         sosa:resultTime "${data["time"]}"^^xsd:dateTime ;
