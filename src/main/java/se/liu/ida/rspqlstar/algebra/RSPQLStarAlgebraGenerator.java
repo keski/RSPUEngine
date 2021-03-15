@@ -27,6 +27,7 @@ public class RSPQLStarAlgebraGenerator extends AlgebraGenerator {
     private Context context;
     private int subQueryDepth;
     public static boolean PULL_RSPU_FILTERS = false;
+    public static boolean USE_LAZY_VARS_AND_CACHE = false;
 
     public RSPQLStarAlgebraGenerator(){
         super();
