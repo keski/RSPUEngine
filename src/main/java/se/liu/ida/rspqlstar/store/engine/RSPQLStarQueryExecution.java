@@ -118,6 +118,8 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
                     nextExecution += query.getComputedEvery();
                     if(CLEAR_CACHE_BETWEEN_EXECUTIONS){
                         LazyNodeValue.cache.clear();
+                        System.err.println("Look ups: " + LazyNodeValue.lookUps);
+                        System.err.println("Cache look ups: " + LazyNodeValue.cacheLookups);
                     }
                 }
                 isRunning = false;
