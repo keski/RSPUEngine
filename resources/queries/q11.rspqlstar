@@ -1,0 +1,69 @@
+BASE <http://example.org/data/>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX rspu: <http://w3id.org/rsp/rspu#>
+PREFIX : <http://example.org/ontology/>
+
+REGISTER STREAM <q7> COMPUTED EVERY PT2S AS
+SELECT ?foi ?value1 ?mu1 ?pdf1 ?value2 ?mu2 ?pdf2 ?value3 ?mu3 ?pdf3 ?value4 ?mu4 ?pdf4
+FROM NAMED WINDOW <w1> ON <http://example.org/ox1> [RANGE PT10S STEP PT1S]
+FROM NAMED WINDOW <w2> ON <http://example.org/ox2> [RANGE PT10S STEP PT1S]
+FROM NAMED WINDOW <w3> ON <http://example.org/temp1> [RANGE PT10S STEP PT1S]
+FROM NAMED WINDOW <w4> ON <http://example.org/temp2> [RANGE PT10S STEP PT1S]
+WHERE {
+    ?sensor1 a :OxygenSensor1 ;
+        sosa:hasFeatureOfInterest ?foi ;
+        rspu:measurementUncertainty ?mu1 .
+    ?sensor2 a :OxygenSensor2 ;
+        sosa:hasFeatureOfInterest ?foi .
+    ?sensor3 a :TemperatureSensor1  ;
+        sosa:hasFeatureOfInterest ?foi ;
+        rspu:measurementUncertainty ?mu3 .
+    ?sensor4 a :TemperatureSensor2  ;
+        sosa:hasFeatureOfInterest ?foi .
+
+    WINDOW <w1> {
+        GRAPH ?g1 {
+            ?o1 sosa:hasSimpleResult ?value1 ;
+                sosa:madeBySensor ?sensor1;
+                sosa:observedProperty ?property1 .
+        }
+    }
+    WINDOW <w2> {
+        GRAPH ?g2 {
+            ?o2 sosa:hasSimpleResult ?value2 ;
+                sosa:madeBySensor ?sensor2 ;
+                sosa:observedProperty ?property1 .
+            << ?o2 sosa:hasSimpleResult ?value2 >> rspu:measurementUncertainty ?mu2
+        }
+    }
+    WINDOW <w3> {
+        GRAPH ?g3 {
+            ?o3 sosa:hasSimpleResult ?value3 ;
+                sosa:madeBySensor ?sensor3;
+                sosa:observedProperty ?property2 .
+        }
+    }
+    WINDOW <w4> {
+        GRAPH ?g4 {
+            ?o4 sosa:hasSimpleResult ?value4 ;
+                sosa:madeBySensor ?sensor4 ;
+                sosa:observedProperty ?property2 .
+            << ?o4 sosa:hasSimpleResult ?value4 >> rspu:measurementUncertainty ?mu4
+        }
+    }
+    # The reported values should be within 1% from each other
+    FILTER(abs(?value1 - ?value2) < 0.001)
+
+    # The reported values should be within 2 degrees from each other
+    FILTER(abs(?value3 -?value4) < 2)
+
+    # There should be a non-zero probability that both observed values are below the scenario threshold
+    BIND(rspu:lessThan(rspu:add(?mu1, ?value1), 0.18) AS ?pdf1)
+    BIND(rspu:lessThan(rspu:add(?mu2, ?value2), 0.18) AS ?pdf2)
+    BIND(rspu:greaterThan(rspu:add(?mu3, ?value3), 30) AS ?pdf3)
+    BIND(rspu:greaterThan(rspu:add(?mu4, ?value4), 30) AS ?pdf4)
+    FILTER(rspu:lessThan(rspu:add(?mu1, ?value1), 0.18) > 0)
+    FILTER(rspu:lessThan(rspu:add(?mu2, ?value2), 0.18) > 0)
+    FILTER(rspu:greaterThan(rspu:add(?mu3, ?value3), 30) > 0)
+    FILTER(rspu:greaterThan(rspu:add(?mu4, ?value4), 30) > 0)
+}

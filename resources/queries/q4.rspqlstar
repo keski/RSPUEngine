@@ -3,8 +3,8 @@ PREFIX sosa: <http://www.w3.org/ns/sosa/>
 PREFIX rspu: <http://w3id.org/rsp/rspu#>
 PREFIX : <http://example.org/ontology/>
 
-REGISTER STREAM <test> COMPUTED EVERY PT2S AS
-SELECT ?foi ?value1 ?mu1 ?pdf1 ?value2 ?mu2 ?pdf2 ?value3 ?mu3 ?pdf3 ?value4 ?mu4 ?pdf4
+REGISTER STREAM <q4> COMPUTED EVERY PT2S AS
+SELECT ?foi ?value1 ?mu1 ?value2 ?mu2 ?value3 ?mu3 ?value4 ?mu4
 FROM NAMED WINDOW <w1> ON <http://example.org/ox1> [RANGE PT10S STEP PT1S]
 FROM NAMED WINDOW <w2> ON <http://example.org/ox2> [RANGE PT10S STEP PT1S]
 FROM NAMED WINDOW <w3> ON <http://example.org/temp1> [RANGE PT10S STEP PT1S]
@@ -33,7 +33,7 @@ WHERE {
             ?o2 sosa:hasSimpleResult ?value2 ;
                 sosa:madeBySensor ?sensor2 ;
                 sosa:observedProperty ?property1 .
-            << ?o2 sosa:hasSimpleResult ?value2 >> <http://w3id.org/rsp/rspu#measurementUncertainty> ?mu2
+            << ?o2 sosa:hasSimpleResult ?value2 >> rspu:measurementUncertainty ?mu2
         }
     }
     WINDOW <w3> {
@@ -51,19 +51,16 @@ WHERE {
             << ?o4 sosa:hasSimpleResult ?value4 >> rspu:measurementUncertainty ?mu4
         }
     }
+    # The reported values should be within 1% from each other
+    FILTER(abs(?value1 - ?value2) < 0.001)
 
-    BIND(rspu:add(?mu1, ?value1) AS ?pdf1)
-    BIND(rspu:add(?mu2, ?value2) AS ?pdf2)
-    BIND(rspu:add(?mu3, ?value3) AS ?pdf3)
-    BIND(rspu:add(?mu4, ?value4) AS ?pdf4)
+    # The reported values should be within 2 degrees from each other
+    FILTER(abs(?value3 - ?value4) < 1)
 
-    FILTER(?value1 < 0.25)
-    FILTER(?value2 < 0.25)
-    FILTER(?value3 > 28)
-    FILTER(?value4 > 28)
-
-    #FILTER(rspu:lessThan(?pdf1, 0.18) > 0)
-    #FILTER(rspu:lessThan(?pdf2, 0.18) > 0)
-    FILTER(rspu:greaterThan(?pdf3, 30) > 0)
-    FILTER(rspu:greaterThan(?pdf4, 30) > 0)
+    # Find the probability that the distance between the two observed values is greater than 0.10.
+    # P(X > Y) > 0.40 and P(X < Y) > 0.40
+    FILTER(rspu:greaterThan(rspu:add(?mu1, ?value1), rspu:add(?mu2, ?value2)) > 0.4)
+    FILTER(rspu:lessThan(rspu:add(?mu1, ?value1), rspu:add(?mu2, ?value2)) > 0.4 )
+    FILTER(rspu:greaterThan(rspu:add(?mu3, ?value3), rspu:add(?mu4, ?value4)) > 0.4)
+    FILTER(rspu:lessThan(rspu:add(?mu3, ?value3), rspu:add(?mu4, ?value4)) > 0.4 )
 }
