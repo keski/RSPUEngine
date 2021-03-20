@@ -118,7 +118,6 @@ public class TransformHeuristics extends TransformCopy {
                 opExtends.remove(opExtend);
                 Var v = opExtend.getVarExprList().getVars().get(0);
                 vars.add(v.getVarName());
-                System.err.println("add extend");
             } else {
                 i++;
             }
