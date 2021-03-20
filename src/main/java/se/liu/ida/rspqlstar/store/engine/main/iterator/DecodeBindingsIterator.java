@@ -53,7 +53,11 @@ public class DecodeBindingsIterator extends QueryIter {
         for (int i = curInput.size() - 1; i >= 0; i--) {
             if (curInput.contains(i)) {
                 final Key key = curInput.get(i);
-                curOutput.add(varDict.getVar(i), getNode(key));
+                if(key instanceof NodeWrapperKey){
+                    curOutput.add(varDict.getVar(i), ((NodeWrapperKey) key).node);
+                } else {
+                    curOutput.add(varDict.getVar(i), getNode(key));
+                }
             }
         }
         return curOutput;
