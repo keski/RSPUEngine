@@ -3,67 +3,42 @@ package se.liu.ida.rspqlstar.function;
 import org.apache.jena.graph.Node;
 import org.apache.jena.sparql.expr.NodeValue;
 import org.apache.jena.sparql.expr.nodevalue.NodeValueVisitor;
-import se.liu.ida.rspqlstar.util.TimeUtil;
+import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.idnodes.Lazy_Node_Concrete_WithID;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Consumer;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 public class LazyNodeValue extends NodeValue {
-    public static int lookUps = 0;
-    public static int cacheLookups = 0;
-    public static Map<String, NodeValue> cache = new HashMap<>();
+    public Lazy_Node_Concrete_WithID node;
+    public String fnName;
+    public NodeValue[] args;
 
-    private Consumer<NodeValue[]> f;
-    private String keyString;
-    private NodeValue[] args;
-    private Node node = null;
-    public static long THROTTLE_EXECUTION = -1;
-
-    public LazyNodeValue(String fString, NodeValue[] args) {
+    public LazyNodeValue(String fnName, NodeValue[] args) {
+        this.fnName = fnName;
         this.args = args;
-        keyString = fString;
-        for(NodeValue nv: args){
-            keyString += nv.toString();
-        }
+        String label = toString();
+        node = new Lazy_Node_Concrete_WithID(label, args, -1L);
     }
 
-    public void setConsumer(Consumer<NodeValue[]> f){
-        this.f = f;
-        getNodeValue();
-    }
-
-    public int hashCode() {
-        return keyString.hashCode();
+    public Node asNode(){
+        node.trigger();
+        return node.resolvedNode;
     }
 
     public String toString(){
-        return keyString;
-    }
-
-    protected Node makeNode(){
-        if(node == null) {
-            getNodeValue();
-        }
-        return node;
+        return fnName + "(" + Arrays.asList(args)
+                .stream()
+                .map( nv -> nv.toString() )
+                .collect( Collectors.joining( "," ) ) + ")";
     }
 
     public NodeValue getNodeValue(){
-        if(!cache.containsKey(keyString)){
-            TimeUtil.silentSleep(THROTTLE_EXECUTION);
-            f.accept(args);
-            lookUps++;
-        }
-        NodeValue nv = cache.get(keyString);
-        cacheLookups++;
-        node = nv.getNode();
-        return nv;
+        node.trigger();
+        return NodeValue.makeNode(node.resolvedNode);
     }
 
-    public Node getNode() {
-        if(node == null) {
-            getNodeValue();
-        }
+    @Override
+    protected Node makeNode() {
         return node;
     }
 
