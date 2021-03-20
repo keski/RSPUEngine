@@ -4,7 +4,7 @@ import org.apache.jena.query.*;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.sparql.engine.*;
 import org.apache.log4j.Logger;
-import se.liu.ida.rspqlstar.function.LazyNodeValue;
+import se.liu.ida.rspqlstar.function.LazyNodeCache;
 import se.liu.ida.rspqlstar.query.RSPQLStarQuery;
 import se.liu.ida.rspqlstar.store.dataset.StreamingDatasetGraph;
 import se.liu.ida.rspqlstar.stream.ContinuousListener;
@@ -19,7 +19,7 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
     private boolean stop = false;
     public boolean isRunning = true;
     private ContinuousListener listener = null;
-    public static boolean CLEAR_CACHE_BETWEEN_EXECUTIONS = false;
+    public static boolean CLEAR_CACHE_BETWEEN_EXECUTIONS = true;
 
     public RSPQLStarQueryExecution(RSPQLStarQuery query, StreamingDatasetGraph sdg){
         this(query, DatasetFactory.wrap(sdg));
@@ -41,9 +41,6 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
 
     public ResultSet execSelect() {
         checkNotClosed();
-        if (!query.isSelectType()) {
-            throw new QueryExecException("Wrong query type: " + query);
-        }
         try {
             final ResultSet rs = execResultSet();
             return new ResultSetCheckCondition(rs, this);
@@ -117,13 +114,12 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
                     exec.close();
                     nextExecution += query.getComputedEvery();
                     if(CLEAR_CACHE_BETWEEN_EXECUTIONS){
-                        LazyNodeValue.cache.clear();
-                        System.err.println("Look ups: " + LazyNodeValue.lookUps);
-                        System.err.println("Cache look ups: " + LazyNodeValue.cacheLookups);
+                        LazyNodeCache.reset();
                     }
                 }
                 isRunning = false;
             } catch (Exception e){
+                logger.error(e);
                 logger.error(e.getMessage());
             }
         };
