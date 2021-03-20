@@ -1,8 +1,10 @@
 package se.liu.ida.rspqlstar.store.engine;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.query.ARQ;
 import org.apache.jena.query.QueryFactory;
+import org.apache.jena.query.ResultSet;
 import org.apache.jena.riot.RDFParser;
 import org.apache.log4j.Logger;
 import se.liu.ida.rdfstar.tools.parser.lang.LangTrigStar;
@@ -11,6 +13,9 @@ import se.liu.ida.rspqlstar.lang.RSPQLStar;
 import se.liu.ida.rspqlstar.query.RSPQLStarQuery;
 import se.liu.ida.rspqlstar.store.dataset.RDFStarStream;
 import se.liu.ida.rspqlstar.store.dataset.StreamingDatasetGraph;
+import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.NodeDictionaryFactory;
+import se.liu.ida.rspqlstar.store.dictionary.referencedictionary.ReferenceDictionary;
+import se.liu.ida.rspqlstar.store.dictionary.referencedictionary.ReferenceDictionaryFactory;
 import se.liu.ida.rspqlstar.stream.StreamFromFile;
 import se.liu.ida.rspqlstar.util.TimeUtil;
 import se.liu.ida.rspqlstar.util.Utils;
@@ -102,7 +107,7 @@ public class RSPQLStarEngineManager {
     public RSPQLStarQueryExecution registerQuery(RSPQLStarQuery query){
         final String outputStream = query.getOutputStream();
         if(streams.containsKey(outputStream)){
-            logger.warn("A stream with the URI " + outputStream + " is already registered");
+            logger.error("A stream with the URI " + outputStream + " is already registered");
             return null;
         }
         final RSPQLStarQueryExecution qexec = new RSPQLStarQueryExecution(query, sdg);
@@ -121,6 +126,17 @@ public class RSPQLStarEngineManager {
         return qexec;
     }
 
+    /**
+     * Run a query once.
+     * @param queryString
+     * @return
+     */
+    public ResultSet runOnce(String queryString){
+        final RSPQLStarQuery query = (RSPQLStarQuery) QueryFactory.create(queryString, RSPQLStar.syntax);
+        final RSPQLStarQueryExecution qexec = new RSPQLStarQueryExecution(query, sdg);
+        return qexec.execSelect();
+    }
+
     public void stop(){
         // Stop all queries
         try {
@@ -135,6 +151,8 @@ public class RSPQLStarEngineManager {
             }
             // Close down executor
             executor.shutdown();
+            NodeDictionaryFactory.get().clear();
+            ReferenceDictionaryFactory.get().clear();
         } catch (Exception e){
             logger.error(e.getMessage());
         }
