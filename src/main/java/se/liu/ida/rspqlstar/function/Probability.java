@@ -7,7 +7,12 @@ import org.apache.commons.math3.distribution.UniformRealDistribution;
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.jena.datatypes.xsd.XSDDatatype;
+import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
+import org.apache.jena.query.QuerySolution;
+import org.apache.jena.query.ResultSet;
+import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.sparql.expr.ExprEvalException;
 import org.apache.jena.sparql.expr.NodeValue;
 import org.apache.jena.sparql.expr.nodevalue.NodeValueNode;
@@ -17,134 +22,198 @@ import org.apache.jena.sparql.function.FunctionFactory;
 import org.apache.jena.sparql.function.FunctionRegistry;
 import se.liu.ida.rspqlstar.algebra.RSPQLStarAlgebraGenerator;
 import se.liu.ida.rspqlstar.datatypes.ProbabilityDistribution;
+import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.idnodes.Lazy_Node_Concrete_WithID;
+import se.liu.ida.rspqlstar.store.engine.RSPQLStarEngineManager;
 
+import java.util.Date;
 import java.util.function.Consumer;
 
 public class Probability {
+    public static boolean USE_CACHE = true;
+    public static boolean USE_LAZY_VAR = true;
+    public static long THROTTLE_EXECUTION = -1;
+
     private static final double MIN_VALUE = 0.0000001; // Double.MIN_VALUE?
     public static final String ns = "http://w3id.org/rsp/rspu#";
 
-    public static void init(){
-        // Probability distribution
-        FunctionRegistry.get().put(ns + "lessThan", Probability.lessThan);
-        FunctionRegistry.get().put(ns + "greaterThan", Probability.greaterThan);
-        FunctionRegistry.get().put(ns + "lessThanOrEqual", Probability.lessThanOrEqual);
-        FunctionRegistry.get().put(ns + "greaterThanOrEqual", Probability.greaterThanOrEqual);
-        FunctionRegistry.get().put(ns + "between", Probability.between);
-        FunctionRegistry.get().put(ns + "add", Probability.add);
-        FunctionRegistry.get().put(ns + "subtract", Probability.subtract);
+    public static void main(String[] args){
+        RSPQLStarEngineManager.init();
+        Lazy_Node_Concrete_WithID.THROTTLE_EXECUTION = 50;
+
+        RSPQLStarEngineManager manager = new RSPQLStarEngineManager(new Date().getTime());
+        RSPQLStarAlgebraGenerator.PULL_RSPU_FILTERS = false;
+
+        for(int i=0; i<10; i++){
+            Node g = NodeFactory.createURI("http://g1");
+            Node s = NodeFactory.createURI("http://s" + i);
+            Node p = NodeFactory.createURI("http://p");
+            Node o = NodeFactory.createLiteralByValue(i, XSDDatatype.XSDdecimal);
+            manager.getSdg().add(new Quad(g,s,p,o));
+        }
+
+        Node g = NodeFactory.createURI("http://g2");
+        Node s = NodeFactory.createURI("http://s" + 0);
+        Node p = NodeFactory.createURI("http://p2");
+        Node o = NodeFactory.createURI("http://o2");;
+        manager.getSdg().add(new Quad(g,s,p,o));
+
+        ResultSet rs = manager.runOnce("" +
+                "PREFIX rspu: <http://w3id.org/rsp/rspu#> " +
+                "REGISTER STREAM <s> COMPUTED EVERY PT4S AS " +
+                "SELECT ?s ?p1 ?x " +
+                "WHERE {" +
+                "    GRAPH <http://g1> { ?s ?p1 ?o1 } " +
+                "    BIND(rspu:add(rspu:add(\"N(0,1)\"^^rspu:distribution, 2), 2) AS ?x) " +
+                "    FILTER(rspu:greaterThan(rspu:add(rspu:add(\"N(0,1)\"^^rspu:distribution, 2), 2), 2) > 0) " +
+                //"    FILTER(rspu:lessThan(\"N(0,1)\"^^rspu:distribution, ?o1) > 0) " +
+                "    GRAPH <http://g2> { ?s ?p2 ?o2 } " +
+                "}");
+        long t0 = new Date().getTime();
+        int counter = 0;
+        while(rs.hasNext()){
+            for(String var: rs.getResultVars()){
+                System.err.print(var + "\t");
+            }
+            System.err.println();
+            while(rs.hasNext()) {
+                QuerySolution qs = rs.next();
+                for (String var : rs.getResultVars()) {
+                    RDFNode n = qs.get(var);
+                    if(n != null) {
+                        System.err.print(n.toString() + "\t");
+                    } else {
+                        System.err.print(n + "\t");
+                    }
+                }
+                System.err.println();
+                counter++;
+            }
+        }
+        System.err.println(counter + " results");
+
+        System.err.println("unresolvedLazyNodes: " + Lazy_Node_Concrete_WithID.unresolvedLazyNodes);
+        System.err.println("resolvedLazyNodes: " + Lazy_Node_Concrete_WithID.resolvedLazyNodes);
+        System.err.println("cachedLazyNodes: " + Lazy_Node_Concrete_WithID.cachedLazyNodes);
+        System.err.println("cacheHits: " + LazyNodeCache.cacheHits);
+
+        long t1 = new Date().getTime();
+        System.err.println(t1-t0 + " ms");
     }
 
-    public static FunctionFactory lessThan = s -> new FunctionBase2() { // less than or equal
+    public static void init(){
+        // Probability distribution
+        FunctionRegistry.get().put(ns + "lessThan", Probability.fnLessThan);
+        FunctionRegistry.get().put(ns + "greaterThan", Probability.fnGreaterThan);
+        FunctionRegistry.get().put(ns + "lessThanOrEqual", Probability.fnLessThanOrEqual);
+        FunctionRegistry.get().put(ns + "greaterThanOrEqual", Probability.fnGreaterThanOrEqual);
+        FunctionRegistry.get().put(ns + "between", Probability.fnBetween);
+        FunctionRegistry.get().put(ns + "add", Probability.fnAdd);
+        FunctionRegistry.get().put(ns + "subtract", Probability.fnSubtract);
+    }
+
+    public static FunctionFactory fnLessThan = s -> new FunctionBase2() { // less than or equal
         @Override
-        public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
-                LazyNodeValue value = new LazyNodeValue("lessThan", new NodeValue[]{nv1, nv2});
-                final Consumer<NodeValue[]> f = (args) -> {
-                    LazyNodeValue.cache.put(value.toString(), Probability.lessThan(args[0], args[1], false));
+        public NodeValue exec(NodeValue arg1, NodeValue arg2) {
+            if(USE_LAZY_VAR){
+                final LazyNodeValue lnv = new LazyNodeValue("lessThan", new NodeValue[]{arg1, arg2});
+                final Consumer<NodeValue[]> fn = (args) -> {
+                    lnv.node.resolvedNode = Probability.lessThan(args[0], args[1], false).getNode();
                 };
-                value.setConsumer(f);
-                return value;
-            } else {
-                return Probability.lessThan(nv1, nv2, false);
+                lnv.node.setConsumer(fn);
+                return lnv;
             }
+            return Probability.lessThan(arg1, arg2, false);
         }
     };
 
-    public static FunctionFactory lessThanOrEqual = s -> new FunctionBase2() { // less than or equal
+    public static FunctionFactory fnLessThanOrEqual = s -> new FunctionBase2() { // less than or equal
         @Override
-        public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
-                LazyNodeValue value = new LazyNodeValue("lessThanOrEqual", new NodeValue[]{nv1, nv2});
-                final Consumer<NodeValue[]> f = (args) -> {
-                    LazyNodeValue.cache.put(value.toString(), Probability.lessThan(args[0], args[1], true));
+        public NodeValue exec(NodeValue arg1, NodeValue arg2) {
+            if(USE_LAZY_VAR){
+                final LazyNodeValue lnv = new LazyNodeValue("lessThanOrEqual", new NodeValue[]{arg1, arg2});
+                final Consumer<NodeValue[]> fn = (args) -> {
+                    lnv.node.resolvedNode = Probability.lessThan(args[0], args[1], true).getNode();
                 };
-                value.setConsumer(f);
-                return value;
-            } else {
-                return Probability.lessThan(nv1, nv2, true);
+                lnv.node.setConsumer(fn);
+                return lnv;
             }
+            return Probability.lessThan(arg1, arg2, true);
         }
     };
 
-    public static FunctionFactory greaterThan = s -> new FunctionBase2() { // greater than
+    public static FunctionFactory fnGreaterThan = s -> new FunctionBase2() { // greater than
         @Override
-        public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
-                LazyNodeValue value = new LazyNodeValue("greaterThan", new NodeValue[]{nv1, nv2});
-                final Consumer<NodeValue[]> f = (args) -> {
-                    LazyNodeValue.cache.put(value.toString(), Probability.greaterThan(args[0], args[1], false));
+        public NodeValue exec(NodeValue arg1, NodeValue arg2) {
+            if(USE_LAZY_VAR){
+                final LazyNodeValue lnv = new LazyNodeValue("greaterThan", new NodeValue[]{arg1, arg2});
+                final Consumer<NodeValue[]> fn = (args) -> {
+                    lnv.node.resolvedNode = Probability.greaterThan(args[0], args[1], false).getNode();
                 };
-                value.setConsumer(f);
-                return value;
-            } else {
-                return Probability.greaterThan(nv1, nv2, false);
+                lnv.node.setConsumer(fn);
+                return lnv;
             }
+            return Probability.greaterThan(arg1, arg2, false);
         }
     };
 
-    public static FunctionFactory greaterThanOrEqual = s -> new FunctionBase2() { // greater than or equal
+    public static FunctionFactory fnGreaterThanOrEqual = s -> new FunctionBase2() { // greater than or equal
         @Override
-        public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
-                LazyNodeValue value = new LazyNodeValue("greaterThanOrEqual", new NodeValue[]{nv1, nv2});
-                final Consumer<NodeValue[]> f = (args) -> {
-                    LazyNodeValue.cache.put(value.toString(), Probability.greaterThan(args[0], args[1], true));
+        public NodeValue exec(NodeValue arg1, NodeValue arg2) {
+            if(USE_LAZY_VAR){
+                final LazyNodeValue lnv = new LazyNodeValue("greaterThanOrEqual", new NodeValue[]{arg1, arg2});
+                final Consumer<NodeValue[]> fn = (args) -> {
+                    lnv.node.resolvedNode = Probability.lessThan(args[0], args[1], true).getNode();
                 };
-                value.setConsumer(f);
-                return value;
-            } else {
-                return Probability.greaterThan(nv1, nv2, true);
+                lnv.node.setConsumer(fn);
+                return lnv;
             }
+            return Probability.lessThan(arg1, arg2, true);
         }
     };
 
-    public static FunctionFactory between = s -> new FunctionBase3() {
+    public static FunctionFactory fnBetween = s -> new FunctionBase3() {
         @Override
-        public NodeValue exec(NodeValue nv1, NodeValue nv2, NodeValue nv3) {
-            if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
-                LazyNodeValue value = new LazyNodeValue("between", new NodeValue[]{nv1, nv2});
-                final Consumer<NodeValue[]> f = (args) -> {
-                    LazyNodeValue.cache.put(value.toString(), Probability.between(args[0], args[1], args[2]));
+        public NodeValue exec(NodeValue arg1, NodeValue arg2, NodeValue arg3) {
+            if(USE_LAZY_VAR){
+                final LazyNodeValue lnv = new LazyNodeValue("between", new NodeValue[]{arg1, arg2, arg3});
+                final Consumer<NodeValue[]> fn = (args) -> {
+                    lnv.node.resolvedNode = Probability.between(args[0], args[1], args[2]).getNode();
                 };
-                value.setConsumer(f);
-                return value;
-            } else {
-                return Probability.between(nv1, nv2, nv3);
+                lnv.node.setConsumer(fn);
+                return lnv;
             }
+            return Probability.between(arg1, arg2, arg3);
         }
     };
 
 
-    public static FunctionFactory add = s -> new FunctionBase2() {
+    public static FunctionFactory fnAdd = s -> new FunctionBase2() {
         @Override
-        public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
-                LazyNodeValue value = new LazyNodeValue("add", new NodeValue[]{nv1, nv2});
-                final Consumer<NodeValue[]> f = (args) -> {
-                    LazyNodeValue.cache.put(value.toString(), Probability.add(args[0], args[1]));
+        public NodeValue exec(NodeValue arg1, NodeValue arg2) {
+            if(USE_LAZY_VAR){
+                final LazyNodeValue lnv = new LazyNodeValue("add", new NodeValue[]{arg1, arg2});
+                final Consumer<NodeValue[]> fn = (args) -> {
+                    lnv.node.resolvedNode = Probability.add(args[0], args[1]).getNode();
                 };
-                value.setConsumer(f);
-                return value;
-            } else {
-                return Probability.add(nv1, nv2);
+                lnv.node.setConsumer(fn);
+                return lnv;
             }
+            return Probability.add(arg1, arg2);
         }
     };
 
-    public static FunctionFactory subtract = s -> new FunctionBase2() {
+    public static FunctionFactory fnSubtract = s -> new FunctionBase2() {
         @Override
-        public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            if(RSPQLStarAlgebraGenerator.USE_LAZY_VARS_AND_CACHE) {
-                LazyNodeValue value = new LazyNodeValue("subtract", new NodeValue[]{nv1, nv2});
-                final Consumer<NodeValue[]> f = (args) -> {
-                    LazyNodeValue.cache.put(value.toString(), Probability.subtract(args[0], args[1]));
+        public NodeValue exec(NodeValue arg1, NodeValue arg2) {
+            if(USE_LAZY_VAR){
+                final LazyNodeValue lnv = new LazyNodeValue("subtract", new NodeValue[]{arg1, arg2});
+                final Consumer<NodeValue[]> fn = (args) -> {
+                    lnv.node.resolvedNode = Probability.subtract(args[0], args[1]).getNode();
                 };
-                value.setConsumer(f);
-                return value;
-            } else {
-                return Probability.subtract(nv1, nv2);
+                lnv.node.setConsumer(fn);
+                return lnv;
             }
+            return Probability.subtract(arg1, arg2);
         }
     };
 
@@ -251,8 +320,9 @@ public class Probability {
             } else {
                 throw new ExprEvalException("greaterThan: The distribution is not yet supported");
             }
-            if(o1 instanceof UniformRealDistribution){
-                UniformRealDistribution d = ((UniformRealDistribution) o1);
+
+            if(o2 instanceof UniformRealDistribution){
+                UniformRealDistribution d = ((UniformRealDistribution) o2);
                 d2 = new UniformRealDistribution(new JDKRandomGenerator(), d.getSupportLowerBound(), d.getSupportUpperBound());
             } else if(o2 instanceof NormalDistribution){
                 NormalDistribution d = ((NormalDistribution) o2);
@@ -309,6 +379,7 @@ public class Probability {
                 throw new ExprEvalException("lessThan: The distributions is not yet supported");
             }
 
+            //
             int sampleSize = 10000;
             DescriptiveStatistics ds = new DescriptiveStatistics();
             for(int i=0; i<sampleSize; i++){
@@ -418,6 +489,9 @@ public class Probability {
      * @return
      */
     public static Object getLiteral(NodeValue nv){
+        if(nv instanceof LazyNodeValue){
+            nv = ((LazyNodeValue) nv).getNodeValue();
+        }
         final Object value;
         if(!nv.isLiteral()){
             throw new ExprEvalException(nv + " is not a literal value");
