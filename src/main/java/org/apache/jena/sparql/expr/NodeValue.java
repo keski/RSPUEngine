@@ -607,7 +607,6 @@ public abstract class NodeValue extends ExprNode {
                             System.err.println("---->" + NodeUtils.compareRDFTerms(node1, node2));
                             return NodeUtils.compareRDFTerms(node1, node2);
                         }
-                        System.err.println("Cant ompare :(");
                         raise(new ExprNotComparableException("Can't compare " + nv1 + " and " + nv2));
                         throw new ARQInternalErrorException("NodeValue.raise returned");
                     }
