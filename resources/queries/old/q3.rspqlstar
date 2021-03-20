@@ -1,14 +1,18 @@
+# PARAMETERS:
+# - P_1 : [0,1)
+# - P_2 : [0,1)
+
 BASE <http://example.org/data/>
 PREFIX sosa: <http://www.w3.org/ns/sosa/>
 PREFIX rspu: <http://w3id.org/rsp/rspu#>
 PREFIX : <http://example.org/ontology/>
 
-REGISTER STREAM <q7> COMPUTED EVERY PT2S AS
-SELECT ?foi ?value1 ?mu1 ?pdf1 ?value2 ?mu2 ?pdf2 ?value3 ?mu3 ?pdf3 ?value4 ?mu4 ?pdf4
-FROM NAMED WINDOW <w1> ON <http://example.org/ox1> [RANGE PT10S STEP PT1S]
-FROM NAMED WINDOW <w2> ON <http://example.org/ox2> [RANGE PT10S STEP PT1S]
-FROM NAMED WINDOW <w3> ON <http://example.org/temp1> [RANGE PT10S STEP PT1S]
-FROM NAMED WINDOW <w4> ON <http://example.org/temp2> [RANGE PT10S STEP PT1S]
+REGISTER STREAM <q3> COMPUTED EVERY PT1S AS
+SELECT ?foi ?value1 ?mu1 ?value2 ?mu2 ?value3 ?mu3 ?value4 ?mu4
+FROM NAMED WINDOW <w1> ON <http://example.org/ox1> [RANGE PT5S STEP PT1S]
+FROM NAMED WINDOW <w2> ON <http://example.org/ox2> [RANGE PT5S STEP PT1S]
+FROM NAMED WINDOW <w3> ON <http://example.org/temp1> [RANGE PT5S STEP PT1S]
+FROM NAMED WINDOW <w4> ON <http://example.org/temp2> [RANGE PT5S STEP PT1S]
 WHERE {
     ?sensor1 a :OxygenSensor1 ;
         sosa:hasFeatureOfInterest ?foi ;
@@ -51,15 +55,20 @@ WHERE {
             << ?o4 sosa:hasSimpleResult ?value4 >> rspu:measurementUncertainty ?mu4
         }
     }
-    # The reported values should be within 1% from each other
-    FILTER(abs(?value1 - ?value2) < 0.001)
 
-    # The reported values should be within 2 degrees from each other
-    FILTER(abs(?value3 -?value4) < 2)
+    # The reported values should be less than 19.5%
+    FILTER(?value1 < 0.19)
+    FILTER(?value2 < 0.19)
 
-    # There should be a non-zero probability that both observed values are below the scenario threshold
-    BIND(rspu:lessThan(rspu:add(?mu1, ?value1), 0.18) AS ?pdf1)
-    BIND(rspu:lessThan(rspu:add(?mu2, ?value2), 0.18) AS ?pdf2)
-    BIND(rspu:greaterThan(rspu:add(?mu3, ?value3), 30) AS ?pdf3)
-    BIND(rspu:greaterThan(rspu:add(?mu4, ?value4), 30) AS ?pdf4)
+    # The reported values should be greater than 27
+    FILTER(?value3 > 28)
+    FILTER(?value4 > 28)
+
+    # Detect observations that are below 0.18 with some probability greater than P
+    FILTER(rspu:lessThan(rspu:add(?mu1, ?value1), 0.18) > $P ||
+           rspu:lessThan(rspu:add(?mu2, ?value2), 0.18) > $P)
+
+    # Detect observations that are above 30 with some probability greater than P
+    FILTER(rspu:greaterThan(rspu:add(?mu3, ?value3), 30) > $P ||
+           rspu:greaterThan(rspu:add(?mu4, ?value4), 30) > $P)
 }

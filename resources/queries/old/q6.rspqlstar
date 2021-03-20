@@ -1,0 +1,42 @@
+# PARAMETERS:
+# - None
+
+BASE <http://example.org/data/>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX rspu: <http://w3id.org/rsp/rspu#>
+PREFIX : <http://example.org/ontology/>
+
+REGISTER STREAM <q6> COMPUTED EVERY PT1S AS
+SELECT ?foi ?value1 ?mu1 ?value2 ?mu2 ?p1 ?p2
+FROM NAMED WINDOW <w1> ON <http://example.org/ox1> [RANGE PT2S STEP PT1S]
+FROM NAMED WINDOW <w2> ON <http://example.org/ox2> [RANGE PT2S STEP PT1S]
+WHERE {
+    ?sensor1 a :OxygenSensor1 ;
+        sosa:hasFeatureOfInterest ?foi ;
+        rspu:measurementUncertainty ?mu1 .
+    ?sensor2 a :OxygenSensor2 ;
+        sosa:hasFeatureOfInterest ?foi .
+
+    WINDOW <w1> {
+        GRAPH ?g1 {
+            ?o1 sosa:hasSimpleResult ?value1 ;
+                sosa:madeBySensor ?sensor1;
+                sosa:observedProperty ?property1 .
+        }
+    }
+    WINDOW <w2> {
+        GRAPH ?g2 {
+            ?o2 sosa:hasSimpleResult ?value2 ;
+                sosa:madeBySensor ?sensor2 ;
+                sosa:observedProperty ?property1 .
+            << ?o2 sosa:hasSimpleResult ?value2 >> rspu:measurementUncertainty ?mu2 .
+        }
+    }
+
+    # If the values differ by more than 0.04, check the difference statistically.
+    FILTER(abs(?value1 - ?value2) > 0.04)
+
+    # Find the probability that the observations are statistically different
+    BIND(rspu:greaterThan(rspu:add(?mu1, ?value1), rspu:add(?mu2, ?value2)) AS ?p1)
+    BIND(rspu:lessThan(rspu:add(?mu1, ?value1), rspu:add(?mu2, ?value2)) AS ?p2)
+}
