@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class LazyNodeCache {
     public static boolean CACHE_ENABLED = true;
-    public static Map<String, Node> cache = new HashMap<>();
+    private static Map<String, Node> cache = new HashMap<>();
     public static int cacheHits = 0;
 
     public static Node get(String key){
@@ -32,5 +32,9 @@ public class LazyNodeCache {
     public static void reset(){
         cache.clear();
         cacheHits = 0;
+    }
+
+    public static int size(){
+        return cache.size();
     }
 }
