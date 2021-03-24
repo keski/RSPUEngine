@@ -1,0 +1,35 @@
+# PARAMETERS:
+# - P : [0,1)
+
+BASE <http://example.org/data/>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX rspu: <http://w3id.org/rsp/rspu#>
+PREFIX : <http://example.org/ontology/>
+
+REGISTER STREAM <q3> COMPUTED EVERY PT1S AS
+SELECT ?foi ?value1 ?mu1 ?value2 ?mu2
+FROM NAMED WINDOW <w1> ON <http://example.org/ox1> [RANGE PT5S STEP PT1S]
+FROM NAMED WINDOW <w2> ON <http://example.org/temp1> [RANGE PT5S STEP PT1S]
+WHERE {
+    ?sensor1 a :OxygenSensor1 .
+    :OxygenSensor1 rspu:measurementUncertainty ?mu1 .
+
+    WINDOW <w1> {
+        GRAPH ?g1 {
+            ?o1 sosa:hasSimpleResult ?value1 ;
+                sosa:hasFeatureOfInterest ?foi ;
+                sosa:madeBySensor ?sensor1 .
+            # Check if the oxygen concentration is below 0.18 with a probability greater than P
+            FILTER(rspu:lessThan(rspu:add(?mu1, ?value1), 0.18) > $P)
+        }
+    }
+    WINDOW <w2> {
+        GRAPH ?g2 {
+            ?o2 sosa:hasSimpleResult ?value2 ;
+                sosa:hasFeatureOfInterest ?foi ;
+                sosa:madeBySensor ?sensor2 .
+            # Ignore reported temperatures lower than 27
+            FILTER(?value2 > 30)
+        }
+    }
+}

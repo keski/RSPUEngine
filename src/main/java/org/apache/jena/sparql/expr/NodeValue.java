@@ -456,6 +456,10 @@ public abstract class NodeValue extends ExprNode {
         }
     }
 
+    public static int doCompare(NodeValue n1, NodeValue n2){
+        return compare(n1, n2);
+    }
+
     /**
      * This method has been modified from the original to concert LazyNodeValue to NodeValue.
      *
