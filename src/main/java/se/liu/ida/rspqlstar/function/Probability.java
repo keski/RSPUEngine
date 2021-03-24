@@ -24,6 +24,7 @@ import se.liu.ida.rspqlstar.algebra.RSPQLStarAlgebraGenerator;
 import se.liu.ida.rspqlstar.datatypes.ProbabilityDistribution;
 import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.idnodes.Lazy_Node_Concrete_WithID;
 import se.liu.ida.rspqlstar.store.engine.RSPQLStarEngineManager;
+import se.liu.ida.rspqlstar.util.TimeUtil;
 
 import java.util.Date;
 import java.util.function.Consumer;
@@ -31,66 +32,54 @@ import java.util.function.Consumer;
 public class Probability {
     public static boolean USE_CACHE = true;
     public static boolean USE_LAZY_VAR = true;
-    public static long THROTTLE_EXECUTION = -1;
 
     private static final double MIN_VALUE = 0.0000001; // Double.MIN_VALUE?
     public static final String ns = "http://w3id.org/rsp/rspu#";
 
     public static void main(String[] args){
         RSPQLStarEngineManager.init();
-        Lazy_Node_Concrete_WithID.THROTTLE_EXECUTION = 50;
-
         RSPQLStarEngineManager manager = new RSPQLStarEngineManager(new Date().getTime());
         RSPQLStarAlgebraGenerator.PULL_RSPU_FILTERS = false;
 
-        for(int i=0; i<10; i++){
+        for(int i=0; i<1000; i++){
             Node g = NodeFactory.createURI("http://g1");
             Node s = NodeFactory.createURI("http://s" + i);
-            Node p = NodeFactory.createURI("http://p");
-            Node o = NodeFactory.createLiteralByValue(i, XSDDatatype.XSDdecimal);
+            Node p = NodeFactory.createLiteral("http://p", XSDDatatype.XSDdecimal);
+            Node o = NodeFactory.createLiteralByValue(1, XSDDatatype.XSDdecimal);
             manager.getSdg().add(new Quad(g,s,p,o));
         }
-
-        Node g = NodeFactory.createURI("http://g2");
-        Node s = NodeFactory.createURI("http://s" + 0);
-        Node p = NodeFactory.createURI("http://p2");
-        Node o = NodeFactory.createURI("http://o2");;
-        manager.getSdg().add(new Quad(g,s,p,o));
 
         ResultSet rs = manager.runOnce("" +
                 "PREFIX rspu: <http://w3id.org/rsp/rspu#> " +
                 "REGISTER STREAM <s> COMPUTED EVERY PT4S AS " +
-                "SELECT ?s ?p1 ?x " +
+                "SELECT ?s ?p ?x " +
                 "WHERE {" +
-                "    GRAPH <http://g1> { ?s ?p1 ?o1 } " +
-                "    BIND(rspu:add(rspu:add(\"N(0,1)\"^^rspu:distribution, 2), 2) AS ?x) " +
-                "    FILTER(rspu:greaterThan(rspu:add(rspu:add(\"N(0,1)\"^^rspu:distribution, 2), 2), 2) > 0) " +
-                //"    FILTER(rspu:lessThan(\"N(0,1)\"^^rspu:distribution, ?o1) > 0) " +
-                "    GRAPH <http://g2> { ?s ?p2 ?o2 } " +
+                "    GRAPH <http://g1> { ?s ?p ?o } " +
+                "    FILTER(rspu:lessThan(\"N(0,1)\"^^rspu:distribution, rspu:add(\"N(0,1)\"^^rspu:distribution, ?o)) > 0) " + // avg. no cache: 1.9ms, avg: cache: 0.48ms
+                //"    FILTER(rspu:lessThan(\"N(0,1)\"^^rspu:distribution, ?o) > 0) " + // avg: 0.375ms (if all cached), avg: 0.35ms. Simple value, no difference in using cache!
+                //"    FILTER(?o > 0) " + // avg: 0.3ms
                 "}");
         long t0 = new Date().getTime();
-        int counter = 0;
+        double counter = 0;
         while(rs.hasNext()){
             for(String var: rs.getResultVars()){
                 System.err.print(var + "\t");
             }
-            System.err.println();
+            String line = "";
             while(rs.hasNext()) {
                 QuerySolution qs = rs.next();
                 for (String var : rs.getResultVars()) {
                     RDFNode n = qs.get(var);
                     if(n != null) {
-                        System.err.print(n.toString() + "\t");
+                        line += n.toString() + "\t";
                     } else {
-                        System.err.print(n + "\t");
+                        line += "null\t";
                     }
                 }
-                System.err.println();
                 counter++;
             }
         }
         System.err.println(counter + " results");
-
         System.err.println("unresolvedLazyNodes: " + Lazy_Node_Concrete_WithID.unresolvedLazyNodes);
         System.err.println("resolvedLazyNodes: " + Lazy_Node_Concrete_WithID.resolvedLazyNodes);
         System.err.println("cachedLazyNodes: " + Lazy_Node_Concrete_WithID.cachedLazyNodes);
@@ -98,6 +87,7 @@ public class Probability {
 
         long t1 = new Date().getTime();
         System.err.println(t1-t0 + " ms");
+        System.err.println((t1-t0)/counter + " ms (avg)");
     }
 
     public static void init(){
@@ -379,7 +369,6 @@ public class Probability {
                 throw new ExprEvalException("lessThan: The distributions is not yet supported");
             }
 
-            //
             int sampleSize = 10000;
             DescriptiveStatistics ds = new DescriptiveStatistics();
             for(int i=0; i<sampleSize; i++){
