@@ -138,12 +138,16 @@ public class RSPQLStarEngineManager {
     }
 
     public void stop(){
+        stop(10000);
+    }
+
+    public void stop(long timeout){
         // Stop all queries
         try {
             for (RSPQLStarQueryExecution exec : queries.values()) {
                 exec.stop();
             }
-            TimeUtil.silentSleep(2000);
+            TimeUtil.silentSleep(timeout);
             // Stop all streams
             for (StreamFromFile stream : streamsFromFiles) {
                 stream.stop();
