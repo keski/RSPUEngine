@@ -30,7 +30,7 @@ def generate_static(number_of_locations, filename=None):
         "temp_sensor_mu": temp_sensor_uniform
     }
 
-    template = Template(filename=f'resources/data.template')
+    template = Template(filename=f'resources/static-part1.template')
     if filename:
         f = open(filename, "w")
         f.write(template.render(data=data))
@@ -44,7 +44,7 @@ def generate_streams(number_of_locations, duration, directory):
     stream3 = []
     stream4 = []
     t0 = datetime.datetime.fromisoformat("2021-03-01T10:00:00.000000")
-    template = Template(filename='resources/stream.template')
+    template = Template(filename='resources/stream-part1.template')
     for obs_count in range(duration):
         time = t0 + datetime.timedelta(seconds=obs_count)
         for loc_count in range(number_of_locations):
@@ -73,7 +73,7 @@ def generate_streams(number_of_locations, duration, directory):
     
 
     if directory:
-        with open(f"resources/prefixes.trigstar", "r") as f:
+        with open(f"resources/prefixes-part1.trigstar", "r") as f:
             prefixes = re.sub("\s+", " ", f.read()) + "\n"
         
         with open(f"{directory}/ox1.trigstar", "w") as f:
@@ -246,8 +246,8 @@ def prob_greater_than(rv1, rv2):
     return gt_count/count
 
 if __name__ == '__main__':
-    generate_static(2000, "../../../resources/data/static.trigstar")
-    #generate_streams(2000, 350, "../../../resources/data/")
+    generate_static(1000, "../../../resources/data/static.trigstar")
+    generate_streams(1000, 300, "../../../resources/data/")
     #generate_selectivity_measures()
     #test_plots()
 

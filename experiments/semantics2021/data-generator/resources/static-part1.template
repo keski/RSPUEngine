@@ -17,23 +17,31 @@
 
 % endfor
 
+:OxygenSensor1 a sosa:Sensor ;
+  rspu:uncertainty "${data["ox_sensor_mu"]()}"^^rspu:distribution .
+
+:OxygenSensor2 a sosa:Sensor .
+
+:TemperatureSensor1 a sosa:Sensor ;
+  rspu:uncertainty "${data["temp_sensor_mu"]()}"^^rspu:distribution .
+
+:TemperatureSensor2 a sosa:Sensor .
+  
 % for i in range(data["number_of_locations"]):
 <sensor/OxygenSensorType1#${i}> rdf:type sosa:Sensor, :OxygenSensor1 ;
   sosa:observes <oxygen/${i}> ;
-  rspu:measurementUncertainty "${data["ox_sensor_mu"]()}"^^rspu:distribution ;
-  sosa:hasFeatureOfInterest <location/${i}> .
-
-<sensor/TemperatureSensorType1#${i}> rdf:type sosa:Sensor, :TemperatureSensor1 ;
-  sosa:observes <temperature/${i}> ;
-  rspu:measurementUncertainty "${data["temp_sensor_mu"]()}"^^rspu:distribution ;
-  sosa:hasFeatureOfInterest <location/${i}> .
+  :location <location/${i}> .
 
 <sensor/OxygenSensorType2#${i}> rdf:type sosa:Sensor, :OxygenSensor2 ;
   sosa:observes <oxygen/${i}> ;
-  sosa:hasFeatureOfInterest <location/${i}> .
+  :location <location/${i}> .
+
+<sensor/TemperatureSensorType1#${i}> rdf:type sosa:Sensor, :TemperatureSensor1 ;
+  sosa:observes <temperature/${i}> ;
+  :location <location/${i}> .
 
 <sensor/TemperatureSensorType2#${i}> rdf:type sosa:Sensor, :TemperatureSensor2 ;
   sosa:observes <temperature/${i}> ;
-  sosa:hasFeatureOfInterest <location/${i}> .
+  :location <location/${i}> .
 
 % endfor
