@@ -9,6 +9,7 @@ import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.riot.system.StreamRDF;
 import org.apache.jena.sparql.core.Quad;
+import org.apache.log4j.Logger;
 import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.NodeDictionary;
 import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.NodeDictionaryFactory;
 import se.liu.ida.rspqlstar.store.dictionary.referencedictionary.ReferenceDictionary;
@@ -26,6 +27,7 @@ public class RDFStarStreamElement implements StreamRDF {
     public static Node timeProperty = NodeFactory.createURI("http://www.w3.org/ns/prov#generatedAtTime");
     private NodeDictionary nd = NodeDictionaryFactory.get();
     private ReferenceDictionary refT = ReferenceDictionaryFactory.get();
+    private static Logger logger = Logger.getLogger(RDFStarStreamElement.class);
 
     public RDFStarStreamElement(){
         this(0);
@@ -64,7 +66,11 @@ public class RDFStarStreamElement implements StreamRDF {
     private IdBasedQuad addQuad(Quad quad) {
         final Node graph = quad.getGraph() == null ? Quad.defaultGraphNodeGenerated : quad.getGraph();
         if(graph == Quad.defaultGraphNodeGenerated && quad.getPredicate().equals(timeProperty)) {
-            time = ((XSDDateTime) quad.getObject().getLiteral().getValue()).asCalendar().getTimeInMillis();
+            try {
+                time = ((XSDDateTime) quad.getObject().getLiteral().getValue()).asCalendar().getTimeInMillis();
+            } catch (Exception e){
+                logger.debug("Failed to parse timestamp: ", e);
+            }
         }
         final long g = nd.addNodeIfNecessary(graph);
         final long s = addIfNecessary(quad.getSubject(), graph);

@@ -1,5 +1,8 @@
 package se.liu.ida.rspqlstar.util;
 
+import org.apache.commons.math3.distribution.NormalDistribution;
+import org.apache.commons.math3.random.JDKRandomGenerator;
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.log4j.Logger;
 
 import java.text.SimpleDateFormat;
@@ -53,5 +56,21 @@ public class TimeUtil {
         } catch (InterruptedException e) {
             logger.info(e.getMessage());
         }
+    }
+
+    public static void silentSleepNs(long sleep){
+        NormalDistribution d1 = new NormalDistribution(new JDKRandomGenerator(), 1, 1);
+        NormalDistribution d2 = new NormalDistribution(new JDKRandomGenerator(), 1, 1);
+        int sampleSize = 1000;
+        DescriptiveStatistics ds = new DescriptiveStatistics();
+        for(int i=0; i<sampleSize; i++){
+            ds.addValue(d1.sample() < d2.sample() ? 1 : 0);
+        }
+        /*try {
+            if(sleep <= 0) return;
+            TimeUnit.NANOSECONDS.sleep(sleep);
+        } catch (InterruptedException e) {
+            logger.info(e.getMessage());
+        }*/
     }
 }

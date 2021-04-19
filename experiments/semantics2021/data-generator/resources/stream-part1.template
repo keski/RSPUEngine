@@ -1,0 +1,12 @@
+GRAPH <graph/${data["type"]}_${data["loc_count"]}#${data["obs_count"]}> {
+    <observation/${data["type"]}/${data["loc_count"]}#${data["obs_count"]}> rdf:type sosa:Observation ;
+        sosa:observedProperty <${data["prop"]}/${data["loc_count"]}> ;
+        sosa:hasFeatureOfInterest <location/${data["loc_count"]}> ;
+        sosa:madeBySensor <sensor/${data["type"]}#${data["loc_count"]}> ;
+        sosa:resultTime "${data["time"]}"^^xsd:dateTime ;
+        sosa:hasSimpleResult ${data["result"]} .
+%if data.get("mu"):
+    << <observation/${data["type"]}/${data["loc_count"]}#${data["obs_count"]}> sosa:hasSimpleResult ${data["result"]} >> rspu:uncertainty "${data["mu"]}"^^rspu:distribution .
+%endif
+}
+<graph/${data["type"]}#${data["obs_count"]}> prov:generatedAtTime "${data["time"]}"^^xsd:dateTime . 

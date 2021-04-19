@@ -55,7 +55,7 @@ public class WindowDatasetGraph extends DatasetGraphStar {
         final long upperBound = getUpperBound(executionTime);
         // use cached dataset
         if(cachedUpperBound == upperBound) {
-            //logger.debug("Using cached dataset for window: " + name);
+            // logger.debug("Using cached dataset for window: " + name);
             return cachedDatasetGraph;
         }
         //logger.debug("Not using cached dataset for window: " + name);
@@ -73,7 +73,7 @@ public class WindowDatasetGraph extends DatasetGraphStar {
     }
 
     public long getUpperBound(long executionTime){
-        return executionTime - ((executionTime - referenceTime) % width);
+        return executionTime - ((executionTime - referenceTime) % step);
     }
 
     public long getLowerBound(long executionTime){

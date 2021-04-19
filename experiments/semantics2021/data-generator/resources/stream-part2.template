@@ -1,0 +1,22 @@
+GRAPH <graph/${data["id"]}> {
+    <event/${data["id"]}> a :Event ;
+        sosa:resultTime "${data["time"]}"^^xsd:dateTime ;
+% for e in data["joins"]["join_001"]:
+        :join_001 <event/${e}> ;
+%endfor
+% for e in data["joins"]["join_01"]:
+        :join_01 <event/${e}> ;
+%endfor
+% for e in data["joins"]["join_1"]:
+        :join_1 <event/${e}> ;
+%endfor
+% for e in data["joins"]["join_10"]:
+        :join_10 <event/${e}> ;
+%endfor
+% for e in data["joins"]["join_100"]:
+        :join_100 <event/${e}> ;
+%endfor
+        sosa:hasSimpleResult ${data["value"]} .
+    << <event/${data["id"]}> sosa:hasSimpleResult ${data["value"]} >> rspu:uncertainty "U(-1,1)"^^rspu:distribution .
+}
+<graph/${data["id"]}> prov:generatedAtTime "${data["time"]}"^^xsd:dateTime . 

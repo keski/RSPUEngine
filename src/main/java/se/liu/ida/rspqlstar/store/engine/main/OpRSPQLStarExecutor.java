@@ -238,7 +238,6 @@ public class OpRSPQLStarExecutor extends OpExecutor {
     }
 
     public Iterator<SolutionMapping> executeIdBasedOp(final Op op, final Iterator<SolutionMapping> input){
-        //logger.info(op.getClass());
         final Iterator<SolutionMapping> iterator;
         if (op instanceof OpQuad) {
             iterator = execute((OpQuad) op, input);
@@ -342,6 +341,7 @@ public class OpRSPQLStarExecutor extends OpExecutor {
         }
         return el;
     }
+
 
     protected QueryIterator execute(OpProject opProject, QueryIterator input) {
         for(Var var : opProject.getVars()){

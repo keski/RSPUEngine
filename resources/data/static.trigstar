@@ -1,0 +1,278 @@
+@prefix rspu:  <http://w3id.org/rsp/rspu#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sosa: <http://www.w3.org/ns/sosa/> .
+@prefix : <http://example.org/ontology/> .
+@base <http://example.org/data/> .
+
+<location/0> rdf:type sosa:FeatureOfInterest, :TunnelSector ;
+    rdfs:label "Tunnel segment 0" .
+
+<temperature/0> rdf:type sosa:ObservableProperty;
+    rdfs:label "Temperature at tunnel sector 0" .
+
+<oxygen/0> rdf:type sosa:ObservableProperty ;
+    rdfs:label "Oxygen concentration at tunnel sector/0" .
+
+<location/1> rdf:type sosa:FeatureOfInterest, :TunnelSector ;
+    rdfs:label "Tunnel segment 1" .
+
+<temperature/1> rdf:type sosa:ObservableProperty;
+    rdfs:label "Temperature at tunnel sector 1" .
+
+<oxygen/1> rdf:type sosa:ObservableProperty ;
+    rdfs:label "Oxygen concentration at tunnel sector/1" .
+
+<location/2> rdf:type sosa:FeatureOfInterest, :TunnelSector ;
+    rdfs:label "Tunnel segment 2" .
+
+<temperature/2> rdf:type sosa:ObservableProperty;
+    rdfs:label "Temperature at tunnel sector 2" .
+
+<oxygen/2> rdf:type sosa:ObservableProperty ;
+    rdfs:label "Oxygen concentration at tunnel sector/2" .
+
+<location/3> rdf:type sosa:FeatureOfInterest, :TunnelSector ;
+    rdfs:label "Tunnel segment 3" .
+
+<temperature/3> rdf:type sosa:ObservableProperty;
+    rdfs:label "Temperature at tunnel sector 3" .
+
+<oxygen/3> rdf:type sosa:ObservableProperty ;
+    rdfs:label "Oxygen concentration at tunnel sector/3" .
+
+<location/4> rdf:type sosa:FeatureOfInterest, :TunnelSector ;
+    rdfs:label "Tunnel segment 4" .
+
+<temperature/4> rdf:type sosa:ObservableProperty;
+    rdfs:label "Temperature at tunnel sector 4" .
+
+<oxygen/4> rdf:type sosa:ObservableProperty ;
+    rdfs:label "Oxygen concentration at tunnel sector/4" .
+
+<location/5> rdf:type sosa:FeatureOfInterest, :TunnelSector ;
+    rdfs:label "Tunnel segment 5" .
+
+<temperature/5> rdf:type sosa:ObservableProperty;
+    rdfs:label "Temperature at tunnel sector 5" .
+
+<oxygen/5> rdf:type sosa:ObservableProperty ;
+    rdfs:label "Oxygen concentration at tunnel sector/5" .
+
+<location/6> rdf:type sosa:FeatureOfInterest, :TunnelSector ;
+    rdfs:label "Tunnel segment 6" .
+
+<temperature/6> rdf:type sosa:ObservableProperty;
+    rdfs:label "Temperature at tunnel sector 6" .
+
+<oxygen/6> rdf:type sosa:ObservableProperty ;
+    rdfs:label "Oxygen concentration at tunnel sector/6" .
+
+<location/7> rdf:type sosa:FeatureOfInterest, :TunnelSector ;
+    rdfs:label "Tunnel segment 7" .
+
+<temperature/7> rdf:type sosa:ObservableProperty;
+    rdfs:label "Temperature at tunnel sector 7" .
+
+<oxygen/7> rdf:type sosa:ObservableProperty ;
+    rdfs:label "Oxygen concentration at tunnel sector/7" .
+
+<location/8> rdf:type sosa:FeatureOfInterest, :TunnelSector ;
+    rdfs:label "Tunnel segment 8" .
+
+<temperature/8> rdf:type sosa:ObservableProperty;
+    rdfs:label "Temperature at tunnel sector 8" .
+
+<oxygen/8> rdf:type sosa:ObservableProperty ;
+    rdfs:label "Oxygen concentration at tunnel sector/8" .
+
+<location/9> rdf:type sosa:FeatureOfInterest, :TunnelSector ;
+    rdfs:label "Tunnel segment 9" .
+
+<temperature/9> rdf:type sosa:ObservableProperty;
+    rdfs:label "Temperature at tunnel sector 9" .
+
+<oxygen/9> rdf:type sosa:ObservableProperty ;
+    rdfs:label "Oxygen concentration at tunnel sector/9" .
+
+
+<sensor/OxygenSensorType1#0> rdf:type sosa:Sensor, :OxygenSensor1 ;
+  sosa:observes <oxygen/0> ;
+  rspu:measurementUncertainty "U(0,0.03)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/0> .
+
+<sensor/TemperatureSensorType1#0> rdf:type sosa:Sensor, :TemperatureSensor1 ;
+  sosa:observes <temperature/0> ;
+  rspu:measurementUncertainty "U(0,3)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/0> .
+
+<sensor/OxygenSensorType2#0> rdf:type sosa:Sensor, :OxygenSensor2 ;
+  sosa:observes <oxygen/0> ;
+  sosa:hasFeatureOfInterest <location/0> .
+
+<sensor/TemperatureSensorType2#0> rdf:type sosa:Sensor, :TemperatureSensor2 ;
+  sosa:observes <temperature/0> ;
+  sosa:hasFeatureOfInterest <location/0> .
+
+<sensor/OxygenSensorType1#1> rdf:type sosa:Sensor, :OxygenSensor1 ;
+  sosa:observes <oxygen/1> ;
+  rspu:measurementUncertainty "U(0,0.03)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/1> .
+
+<sensor/TemperatureSensorType1#1> rdf:type sosa:Sensor, :TemperatureSensor1 ;
+  sosa:observes <temperature/1> ;
+  rspu:measurementUncertainty "U(0,3)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/1> .
+
+<sensor/OxygenSensorType2#1> rdf:type sosa:Sensor, :OxygenSensor2 ;
+  sosa:observes <oxygen/1> ;
+  sosa:hasFeatureOfInterest <location/1> .
+
+<sensor/TemperatureSensorType2#1> rdf:type sosa:Sensor, :TemperatureSensor2 ;
+  sosa:observes <temperature/1> ;
+  sosa:hasFeatureOfInterest <location/1> .
+
+<sensor/OxygenSensorType1#2> rdf:type sosa:Sensor, :OxygenSensor1 ;
+  sosa:observes <oxygen/2> ;
+  rspu:measurementUncertainty "U(0,0.03)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/2> .
+
+<sensor/TemperatureSensorType1#2> rdf:type sosa:Sensor, :TemperatureSensor1 ;
+  sosa:observes <temperature/2> ;
+  rspu:measurementUncertainty "U(0,3)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/2> .
+
+<sensor/OxygenSensorType2#2> rdf:type sosa:Sensor, :OxygenSensor2 ;
+  sosa:observes <oxygen/2> ;
+  sosa:hasFeatureOfInterest <location/2> .
+
+<sensor/TemperatureSensorType2#2> rdf:type sosa:Sensor, :TemperatureSensor2 ;
+  sosa:observes <temperature/2> ;
+  sosa:hasFeatureOfInterest <location/2> .
+
+<sensor/OxygenSensorType1#3> rdf:type sosa:Sensor, :OxygenSensor1 ;
+  sosa:observes <oxygen/3> ;
+  rspu:measurementUncertainty "U(0,0.03)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/3> .
+
+<sensor/TemperatureSensorType1#3> rdf:type sosa:Sensor, :TemperatureSensor1 ;
+  sosa:observes <temperature/3> ;
+  rspu:measurementUncertainty "U(0,3)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/3> .
+
+<sensor/OxygenSensorType2#3> rdf:type sosa:Sensor, :OxygenSensor2 ;
+  sosa:observes <oxygen/3> ;
+  sosa:hasFeatureOfInterest <location/3> .
+
+<sensor/TemperatureSensorType2#3> rdf:type sosa:Sensor, :TemperatureSensor2 ;
+  sosa:observes <temperature/3> ;
+  sosa:hasFeatureOfInterest <location/3> .
+
+<sensor/OxygenSensorType1#4> rdf:type sosa:Sensor, :OxygenSensor1 ;
+  sosa:observes <oxygen/4> ;
+  rspu:measurementUncertainty "U(0,0.03)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/4> .
+
+<sensor/TemperatureSensorType1#4> rdf:type sosa:Sensor, :TemperatureSensor1 ;
+  sosa:observes <temperature/4> ;
+  rspu:measurementUncertainty "U(0,3)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/4> .
+
+<sensor/OxygenSensorType2#4> rdf:type sosa:Sensor, :OxygenSensor2 ;
+  sosa:observes <oxygen/4> ;
+  sosa:hasFeatureOfInterest <location/4> .
+
+<sensor/TemperatureSensorType2#4> rdf:type sosa:Sensor, :TemperatureSensor2 ;
+  sosa:observes <temperature/4> ;
+  sosa:hasFeatureOfInterest <location/4> .
+
+<sensor/OxygenSensorType1#5> rdf:type sosa:Sensor, :OxygenSensor1 ;
+  sosa:observes <oxygen/5> ;
+  rspu:measurementUncertainty "U(0,0.03)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/5> .
+
+<sensor/TemperatureSensorType1#5> rdf:type sosa:Sensor, :TemperatureSensor1 ;
+  sosa:observes <temperature/5> ;
+  rspu:measurementUncertainty "U(0,3)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/5> .
+
+<sensor/OxygenSensorType2#5> rdf:type sosa:Sensor, :OxygenSensor2 ;
+  sosa:observes <oxygen/5> ;
+  sosa:hasFeatureOfInterest <location/5> .
+
+<sensor/TemperatureSensorType2#5> rdf:type sosa:Sensor, :TemperatureSensor2 ;
+  sosa:observes <temperature/5> ;
+  sosa:hasFeatureOfInterest <location/5> .
+
+<sensor/OxygenSensorType1#6> rdf:type sosa:Sensor, :OxygenSensor1 ;
+  sosa:observes <oxygen/6> ;
+  rspu:measurementUncertainty "U(0,0.03)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/6> .
+
+<sensor/TemperatureSensorType1#6> rdf:type sosa:Sensor, :TemperatureSensor1 ;
+  sosa:observes <temperature/6> ;
+  rspu:measurementUncertainty "U(0,3)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/6> .
+
+<sensor/OxygenSensorType2#6> rdf:type sosa:Sensor, :OxygenSensor2 ;
+  sosa:observes <oxygen/6> ;
+  sosa:hasFeatureOfInterest <location/6> .
+
+<sensor/TemperatureSensorType2#6> rdf:type sosa:Sensor, :TemperatureSensor2 ;
+  sosa:observes <temperature/6> ;
+  sosa:hasFeatureOfInterest <location/6> .
+
+<sensor/OxygenSensorType1#7> rdf:type sosa:Sensor, :OxygenSensor1 ;
+  sosa:observes <oxygen/7> ;
+  rspu:measurementUncertainty "U(0,0.03)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/7> .
+
+<sensor/TemperatureSensorType1#7> rdf:type sosa:Sensor, :TemperatureSensor1 ;
+  sosa:observes <temperature/7> ;
+  rspu:measurementUncertainty "U(0,3)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/7> .
+
+<sensor/OxygenSensorType2#7> rdf:type sosa:Sensor, :OxygenSensor2 ;
+  sosa:observes <oxygen/7> ;
+  sosa:hasFeatureOfInterest <location/7> .
+
+<sensor/TemperatureSensorType2#7> rdf:type sosa:Sensor, :TemperatureSensor2 ;
+  sosa:observes <temperature/7> ;
+  sosa:hasFeatureOfInterest <location/7> .
+
+<sensor/OxygenSensorType1#8> rdf:type sosa:Sensor, :OxygenSensor1 ;
+  sosa:observes <oxygen/8> ;
+  rspu:measurementUncertainty "U(0,0.03)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/8> .
+
+<sensor/TemperatureSensorType1#8> rdf:type sosa:Sensor, :TemperatureSensor1 ;
+  sosa:observes <temperature/8> ;
+  rspu:measurementUncertainty "U(0,3)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/8> .
+
+<sensor/OxygenSensorType2#8> rdf:type sosa:Sensor, :OxygenSensor2 ;
+  sosa:observes <oxygen/8> ;
+  sosa:hasFeatureOfInterest <location/8> .
+
+<sensor/TemperatureSensorType2#8> rdf:type sosa:Sensor, :TemperatureSensor2 ;
+  sosa:observes <temperature/8> ;
+  sosa:hasFeatureOfInterest <location/8> .
+
+<sensor/OxygenSensorType1#9> rdf:type sosa:Sensor, :OxygenSensor1 ;
+  sosa:observes <oxygen/9> ;
+  rspu:measurementUncertainty "U(0,0.03)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/9> .
+
+<sensor/TemperatureSensorType1#9> rdf:type sosa:Sensor, :TemperatureSensor1 ;
+  sosa:observes <temperature/9> ;
+  rspu:measurementUncertainty "U(0,3)"^^rspu:distribution ;
+  sosa:hasFeatureOfInterest <location/9> .
+
+<sensor/OxygenSensorType2#9> rdf:type sosa:Sensor, :OxygenSensor2 ;
+  sosa:observes <oxygen/9> ;
+  sosa:hasFeatureOfInterest <location/9> .
+
+<sensor/TemperatureSensorType2#9> rdf:type sosa:Sensor, :TemperatureSensor2 ;
+  sosa:observes <temperature/9> ;
+  sosa:hasFeatureOfInterest <location/9> .
+

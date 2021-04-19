@@ -1,0 +1,22 @@
+BASE <http://example.org/data/>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX rspu: <http://w3id.org/rsp/rspu#>
+REGISTER STREAM <test> COMPUTED EVERY PT2S AS
+SELECT ?value ?mu ?x
+FROM NAMED WINDOW <w> ON <http://example.org/ox> [RANGE PT1S STEP PT1S]
+WHERE {
+    WINDOW <w> {
+        GRAPH ?g {
+            ?obs sosa:hasSimpleResult ?value .
+            << ?obs sosa:hasSimpleResult ?value >> ?p ?mu .
+            FILTER(rspu:greaterThan(?mu, 0) > 0.0)
+            FILTER(rspu:lessThan(?mu, 0) > 0.0)
+            FILTER(rspu:lessThan(?mu, 0) + 1 > 1)
+            FILTER(rspu:lessThan(?mu, 0) - 1 < 0)
+            FILTER(rspu:lessThan(?mu, 0) + 1 >= 1)
+            FILTER(rspu:lessThan(?mu, 0) - 1 <= 0)
+            BIND(rspu:lessThan(?mu, 0) - 1 AS ?x)
+            ?ob ?a ?b .
+        }
+    }
+}

@@ -100,7 +100,8 @@ public class DatasetGraphStar extends AbstractDatasetGraph {
     }
 
     private IdBasedQuad addQuad(Quad quad) {
-        final Node graph = quad.getGraph();
+        final Node graph = quad.getGraph() == null ? Quad.defaultGraphNodeGenerated : quad.getGraph();
+
         final Node subject = quad.getSubject();
         final Node predicate = quad.getPredicate();
         final Node object = quad.getObject();
@@ -195,13 +196,14 @@ public class DatasetGraphStar extends AbstractDatasetGraph {
             iter = GSPO.iterateAll();
         }
 
-        if(!iter.hasNext()) {
-            logger.error("\n" + pattern + " no match");
-        }
+        //if(!iter.hasNext()) {
+        //    logger.debug("\n" + pattern + " no match");
+        //}
 
-        return iter;
         // TODO: for quad patterns where the same var appears more than once, we need  to filter the results
         //return new FilteredQuadIterator(iter, pattern);
+
+        return iter;
     }
 
     public String toString(){

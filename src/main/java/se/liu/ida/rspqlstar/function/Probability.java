@@ -1,76 +1,221 @@
 package se.liu.ida.rspqlstar.function;
 
-import org.apache.commons.math3.distribution.*;
+import org.apache.commons.math3.distribution.AbstractRealDistribution;
+import org.apache.commons.math3.distribution.NormalDistribution;
+import org.apache.commons.math3.distribution.RealDistribution;
+import org.apache.commons.math3.distribution.UniformRealDistribution;
+import org.apache.commons.math3.random.JDKRandomGenerator;
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+import org.apache.jena.datatypes.xsd.XSDDatatype;
+import org.apache.jena.graph.Node;
+import org.apache.jena.graph.NodeFactory;
+import org.apache.jena.query.QuerySolution;
+import org.apache.jena.query.ResultSet;
+import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.sparql.expr.ExprEvalException;
 import org.apache.jena.sparql.expr.NodeValue;
+import org.apache.jena.sparql.expr.nodevalue.NodeValueNode;
 import org.apache.jena.sparql.function.FunctionBase2;
 import org.apache.jena.sparql.function.FunctionBase3;
 import org.apache.jena.sparql.function.FunctionFactory;
 import org.apache.jena.sparql.function.FunctionRegistry;
+import se.liu.ida.rspqlstar.algebra.RSPQLStarAlgebraGenerator;
 import se.liu.ida.rspqlstar.datatypes.ProbabilityDistribution;
+import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.idnodes.Lazy_Node_Concrete_WithID;
+import se.liu.ida.rspqlstar.store.engine.RSPQLStarEngineManager;
+
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 public class Probability {
+    public static boolean USE_LAZY_VAR = true;
+    public static int callCounter = 0;
+
     private static final double MIN_VALUE = 0.0000001; // Double.MIN_VALUE?
     public static final String ns = "http://w3id.org/rsp/rspu#";
 
-    public static void init(){
-        // Probability distribution
-        FunctionRegistry.get().put(ns + "lessThan", Probability.lessThan);
-        FunctionRegistry.get().put(ns + "greaterThan", Probability.greaterThan);
-        FunctionRegistry.get().put(ns + "lessThanOrEqual", Probability.lessThanOrEqual);
-        FunctionRegistry.get().put(ns + "greaterThanOrEqual", Probability.greaterThanOrEqual);
-        FunctionRegistry.get().put(ns + "between", Probability.between);
-        FunctionRegistry.get().put(ns + "add", Probability.add);
-        FunctionRegistry.get().put(ns + "subtract", Probability.subtract);
+    public static void main(String[] args) throws InterruptedException {
+
+        if (true) {
+            for(int x=0; x < 10; x++) {
+                long t0 = new Date().getTime();
+                NormalDistribution d1 = new NormalDistribution(new JDKRandomGenerator(), 1, 1);
+                NormalDistribution d2 = new NormalDistribution(new JDKRandomGenerator(), 1, 1);
+                int sampleSize = 10000;
+                DescriptiveStatistics ds = new DescriptiveStatistics();
+                for(int i=0; i<sampleSize; i++){
+                    ds.addValue(d1.sample() < d2.sample() ? 1 : 0);
+                }
+                System.err.println(new Date().getTime() - t0 + "ms");
+            }
+            return;
+        }
+        RSPQLStarEngineManager.init();
+        RSPQLStarEngineManager manager = new RSPQLStarEngineManager(new Date().getTime());
+        RSPQLStarAlgebraGenerator.PULL_RSPU_FILTERS = true;
+        Probability.USE_LAZY_VAR = true;
+        Lazy_Node_Concrete_WithID.CACHE_ENABLED = false;
+
+        for(int i=0; i<10; i++){
+            Node g = NodeFactory.createURI("http://g1");
+            Node s = NodeFactory.createURI("http://s" + i);
+            Node p = NodeFactory.createLiteral("http://p", XSDDatatype.XSDdecimal);
+            Node o = NodeFactory.createLiteralByValue(i%10, XSDDatatype.XSDdecimal);
+            manager.getSdg().add(new Quad(g,s,p,o));
+        }
+
+        ResultSet rs = manager.runOnce("" +
+                "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> " +
+                "PREFIX rspu: <http://w3id.org/rsp/rspu#> " +
+                "REGISTER STREAM <s> COMPUTED EVERY PT4S AS " +
+                "SELECT ?s ?p ?o " +
+                "WHERE {" +
+                "    GRAPH <http://g1> { ?s ?p ?o } " +
+                //"    FILTER(rspu:lessThan(\"N(0,1)\"^^rspu:distribution, ?o) > 0) " + // avg. no cache: 1.9ms, avg: cache: 0.48ms
+                "    GRAPH ?g { ?s ?p \"1\"^^xsd:decimal } " +
+                "    BIND(rspu:lessThan(\"N(0,1)\"^^rspu:distribution, ?o) AS ?prob) " + // avg. no cache: 1.9ms, avg: cache: 0.48ms
+                //"    FILTER(rspu:lessThan(\"N(0,1)\"^^rspu:distribution, rspu:add(\"N(0,1)\"^^rspu:distribution, ?o)) > 0) " + // avg. no cache: 1.9ms, avg: cache: 0.48ms
+                //"    FILTER(rspu:lessThan(\"N(0,1)\"^^rspu:distribution, ?o) > 0) " + // avg: 0.375ms (if all cached), avg: 0.35ms. Simple value, no difference in using cache!
+                //"    FILTER(?o > 0) " + // avg: 0.3ms
+                "}");
+        long t0 = new Date().getTime();
+        double counter = 0;
+        while(rs.hasNext()){
+            for(String var: rs.getResultVars()){
+                System.out.print(var + "\t");
+            }
+            System.out.println();
+            while(rs.hasNext()) {
+                QuerySolution qs = rs.next();
+                System.err.println(qs);
+                for (String var : rs.getResultVars()) {
+                    RDFNode n = qs.get(var);
+                    System.err.println(n.getClass());
+                    if(n != null) {
+                        System.out.print(n.toString() + "\t");
+                    } else {
+                        System.out.print("null\t");
+                    }
+                }
+                System.out.println();
+                counter++;
+            }
+        }
+        System.err.println(counter + " results");
+        System.err.println("Unc calls: " + Probability.callCounter);
+        System.err.println("resolvedLazyNodes: " + Lazy_Node_Concrete_WithID.resolvedLazyNodes);
+
+        double t1 = new Date().getTime();
+        System.err.println(t1-t0 + " ms");
+        System.err.println((t1-t0)/counter + " ms (avg)");
     }
 
-    public static FunctionFactory lessThan = s -> new FunctionBase2() { // less than or equal
+    public static void init(){
+        // Probability distribution
+        FunctionRegistry.get().put(ns + "lessThan", Probability.fnLessThan);
+        FunctionRegistry.get().put(ns + "greaterThan", Probability.fnGreaterThan);
+        FunctionRegistry.get().put(ns + "lessThanOrEqual", Probability.fnLessThanOrEqual);
+        FunctionRegistry.get().put(ns + "greaterThanOrEqual", Probability.fnGreaterThanOrEqual);
+        FunctionRegistry.get().put(ns + "between", Probability.fnBetween);
+        FunctionRegistry.get().put(ns + "add", Probability.fnAdd);
+        FunctionRegistry.get().put(ns + "subtract", Probability.fnSubtract);
+    }
+
+    public static FunctionFactory fnLessThan = s -> new FunctionBase2() { // less than or equal
         @Override
-        public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            return Probability.lessThan(nv1, nv2, false);
+        public NodeValue exec(NodeValue arg1, NodeValue arg2) {
+            callCounter++;
+            final LazyNodeValue lnv = new LazyNodeValue("lessThan", new NodeValue[]{arg1, arg2});
+            final Consumer<NodeValue[]> fn = (args) -> {
+                lnv.node.resolvedNode = Probability.lessThan(args[0], args[1], false).getNode();
+            };
+            lnv.node.setConsumer(fn);
+            if(!USE_LAZY_VAR){ return lnv.getNodeValue(); }
+            return lnv;
         }
     };
 
-    public static FunctionFactory lessThanOrEqual = s -> new FunctionBase2() { // less than or equal
+    public static FunctionFactory fnLessThanOrEqual = s -> new FunctionBase2() { // less than or equal
         @Override
-        public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            return Probability.lessThan(nv1, nv2, true);
+        public NodeValue exec(NodeValue arg1, NodeValue arg2) {
+            final LazyNodeValue lnv = new LazyNodeValue("lessThanOrEqual", new NodeValue[]{arg1, arg2});
+            final Consumer<NodeValue[]> fn = (args) -> {
+                lnv.node.resolvedNode = Probability.lessThan(args[0], args[1], true).getNode();
+            };
+            lnv.node.setConsumer(fn);
+            if(!USE_LAZY_VAR){ return lnv.getNodeValue(); }
+            return lnv;
         }
     };
 
-    public static FunctionFactory greaterThan = s -> new FunctionBase2() { // greater than
+    public static FunctionFactory fnGreaterThan = s -> new FunctionBase2() { // greater than
         @Override
-        public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            return Probability.greaterThan(nv1, nv2, false);
+        public NodeValue exec(NodeValue arg1, NodeValue arg2) {
+            final LazyNodeValue lnv = new LazyNodeValue("greaterThan", new NodeValue[]{arg1, arg2});
+            final Consumer<NodeValue[]> fn = (args) -> {
+                lnv.node.resolvedNode = Probability.greaterThan(args[0], args[1], false).getNode();
+            };
+            lnv.node.setConsumer(fn);
+            if(!USE_LAZY_VAR){ return lnv.getNodeValue(); }
+            return lnv;
         }
     };
 
-    public static FunctionFactory greaterThanOrEqual = s -> new FunctionBase2() { // greater than or equal
+    public static FunctionFactory fnGreaterThanOrEqual = s -> new FunctionBase2() { // greater than or equal
         @Override
-        public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            return Probability.greaterThan(nv1, nv2, true);
+        public NodeValue exec(NodeValue arg1, NodeValue arg2) {
+            final LazyNodeValue lnv = new LazyNodeValue("greaterThanOrEqual", new NodeValue[]{arg1, arg2});
+            final Consumer<NodeValue[]> fn = (args) -> {
+                lnv.node.resolvedNode = Probability.lessThan(args[0], args[1], true).getNode();
+            };
+            lnv.node.setConsumer(fn);
+            if(!USE_LAZY_VAR){ return lnv.getNodeValue(); }
+            return lnv;
         }
     };
 
-    public static FunctionFactory between = s -> new FunctionBase3() {
+    public static FunctionFactory fnBetween = s -> new FunctionBase3() {
         @Override
-        public NodeValue exec(NodeValue nv1, NodeValue nv2, NodeValue nv3) {
-            return Probability.between(nv1, nv2, nv3);
+        public NodeValue exec(NodeValue arg1, NodeValue arg2, NodeValue arg3) {
+            final LazyNodeValue lnv = new LazyNodeValue("between", new NodeValue[]{arg1, arg2, arg3});
+            final Consumer<NodeValue[]> fn = (args) -> {
+                lnv.node.resolvedNode = Probability.between(args[0], args[1], args[2]).getNode();
+            };
+            lnv.node.setConsumer(fn);
+            if(!USE_LAZY_VAR){ return lnv.getNodeValue(); }
+            return lnv;
         }
     };
 
 
-    public static FunctionFactory add = s -> new FunctionBase2() {
+    public static FunctionFactory fnAdd = s -> new FunctionBase2() {
         @Override
-        public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            return Probability.add(nv1, nv2);
+        public NodeValue exec(NodeValue arg1, NodeValue arg2) {
+            callCounter++;
+            final LazyNodeValue lnv = new LazyNodeValue("add", new NodeValue[]{arg1, arg2});
+            final Consumer<NodeValue[]> fn = (args) -> {
+                lnv.node.resolvedNode = Probability.add(args[0], args[1]).getNode();
+            };
+            lnv.node.setConsumer(fn);
+            if(!USE_LAZY_VAR){ return lnv.getNodeValue(); }
+            return lnv;
         }
     };
 
-    public static FunctionFactory subtract = s -> new FunctionBase2() {
+    public static FunctionFactory fnSubtract = s -> new FunctionBase2() {
         @Override
-        public NodeValue exec(NodeValue nv1, NodeValue nv2) {
-            return Probability.subtract(nv1, nv2);
+        public NodeValue exec(NodeValue arg1, NodeValue arg2) {
+            final LazyNodeValue lnv = new LazyNodeValue("subtract", new NodeValue[]{arg1, arg2});
+            final Consumer<NodeValue[]> fn = (args) -> {
+                lnv.node.resolvedNode = Probability.subtract(args[0], args[1]).getNode();
+            };
+            lnv.node.setConsumer(fn);
+            if(!USE_LAZY_VAR){ return lnv.getNodeValue(); }
+            return lnv;
         }
     };
 
@@ -103,7 +248,7 @@ public class Probability {
      * @param nv2
      * @return
      */
-    private static NodeValue add(NodeValue nv1, NodeValue nv2){
+    public static NodeValue add(NodeValue nv1, NodeValue nv2) {
         final Object v1 = getLiteral(nv1);
         final Object v2 = getLiteral(nv2);
 
@@ -161,19 +306,39 @@ public class Probability {
         final double diff = inclusive ? 0 : MIN_VALUE;
 
         final NodeValue nv;
-        if (o1 instanceof Double && o2 instanceof Double) {
-            if(inclusive) {
-                nv = (double) o1 >= (double) o2 ? NodeValue.makeDecimal(1) : NodeValue.makeDecimal(0);
-            } else {
-                nv = (double) o1 > (double) o2 ? NodeValue.makeDecimal(1) : NodeValue.makeDecimal(0);
-            }
-        } else if (o2 instanceof Double) {
+        if (o2 instanceof Double) {
             final double prob = ((RealDistribution) o1).cumulativeProbability((double) o2 + diff);
-            nv = NodeValue.makeDecimal(1 - prob);
-        } else if (o2 instanceof Double) {
+            nv = NodeValueNode.makeNode(NodeFactory.createLiteralByValue(1 - prob, XSDDatatype.XSDdouble));
+        } else if (o1 instanceof Double) {
             throw new ExprEvalException("greaterThan/greaterThanOrEqual: invalid order of arguments");
         } else {
-            throw new ExprEvalException("greaterThan/greaterThanOrEqual: comparing distributions is not implemented");
+            RealDistribution d1, d2;
+            if(o1 instanceof UniformRealDistribution){
+                UniformRealDistribution urd1 = ((UniformRealDistribution) o1);
+                d1 = new UniformRealDistribution(new JDKRandomGenerator(), urd1.getSupportLowerBound(), urd1.getSupportUpperBound());
+            } else if(o1 instanceof NormalDistribution){
+                NormalDistribution n1 = ((NormalDistribution) o1);
+                d1 = new NormalDistribution(new JDKRandomGenerator(), n1.getMean(), n1.getStandardDeviation());
+            } else {
+                throw new ExprEvalException("greaterThan: The distribution is not yet supported");
+            }
+
+            if(o2 instanceof UniformRealDistribution){
+                UniformRealDistribution d = ((UniformRealDistribution) o2);
+                d2 = new UniformRealDistribution(new JDKRandomGenerator(), d.getSupportLowerBound(), d.getSupportUpperBound());
+            } else if(o2 instanceof NormalDistribution){
+                NormalDistribution d = ((NormalDistribution) o2);
+                d2 = new NormalDistribution(new JDKRandomGenerator(), d.getMean(), d.getStandardDeviation());
+            } else {
+                throw new ExprEvalException("greaterThan: The distributions is not yet supported");
+            }
+
+            int sampleSize = 10000;
+            DescriptiveStatistics ds = new DescriptiveStatistics();
+            for(int i=0; i<sampleSize; i++){
+                ds.addValue(d1.sample() > d2.sample() ? 1 : 0);
+            }
+            nv = NodeValueNode.makeNode(NodeFactory.createLiteralByValue(ds.getMean(), XSDDatatype.XSDdouble));
         }
         return nv;
     }
@@ -189,21 +354,39 @@ public class Probability {
         final Object o1 = getLiteral(nv1);
         final Object o2 = getLiteral(nv2);
         final double diff = inclusive ? 0 : MIN_VALUE;
-
         final NodeValue nv;
-        if (o1 instanceof Double && o2 instanceof Double) {
-            if(inclusive) {
-                nv = (double) o1 <= (double) o2 ? NodeValue.makeDecimal(1) : NodeValue.makeDecimal(0);
-            } else {
-                nv = (double) o1 < (double) o2 ? NodeValue.makeDecimal(1) : NodeValue.makeDecimal(0);
-            }
-        } else if (o2 instanceof Double) {
+        if (o2 instanceof Double) {
             final double prob = ((RealDistribution) o1).cumulativeProbability((double) o2 - diff);
-            nv = NodeValue.makeDecimal(prob);
-        } else if (o2 instanceof Double) {
+            nv = NodeValueNode.makeNode(NodeFactory.createLiteralByValue(prob, XSDDatatype.XSDdouble));
+        } else if (o1 instanceof Double) {
             throw new ExprEvalException("lessThan/lessThanOrEqual: invalid order of arguments");
         } else {
-            throw new ExprEvalException("lessThan/lessThanOrEqual: comparing distributions is not implemented");
+            RealDistribution d1, d2;
+            if(o1 instanceof UniformRealDistribution){
+                UniformRealDistribution urd1 = ((UniformRealDistribution) o1);
+                d1 = new UniformRealDistribution(new JDKRandomGenerator(), urd1.getSupportLowerBound(), urd1.getSupportUpperBound());
+            } else if(o1 instanceof NormalDistribution){
+                NormalDistribution n1 = ((NormalDistribution) o1);
+                d1 = new NormalDistribution(new JDKRandomGenerator(), n1.getMean(), n1.getStandardDeviation());
+            } else {
+                throw new ExprEvalException("lessThan: The distribution is not yet supported");
+            }
+            if(o1 instanceof UniformRealDistribution){
+                UniformRealDistribution d = ((UniformRealDistribution) o1);
+                d2 = new UniformRealDistribution(new JDKRandomGenerator(), d.getSupportLowerBound(), d.getSupportUpperBound());
+            } else if(o2 instanceof NormalDistribution){
+                NormalDistribution d = ((NormalDistribution) o2);
+                d2 = new NormalDistribution(new JDKRandomGenerator(), d.getMean(), d.getStandardDeviation());
+            } else {
+                throw new ExprEvalException("lessThan: The distributions is not yet supported");
+            }
+
+            int sampleSize = 10000;
+            DescriptiveStatistics ds = new DescriptiveStatistics();
+            for(int i=0; i<sampleSize; i++){
+                ds.addValue(d1.sample() < d2.sample() ? 1 : 0);
+            }
+            nv = NodeValueNode.makeNode(NodeFactory.createLiteralByValue(ds.getMean(), XSDDatatype.XSDdouble));
         }
         return nv;
     }
@@ -307,6 +490,9 @@ public class Probability {
      * @return
      */
     public static Object getLiteral(NodeValue nv){
+        if(nv instanceof LazyNodeValue){
+            nv = ((LazyNodeValue) nv).getNodeValue();
+        }
         final Object value;
         if(!nv.isLiteral()){
             throw new ExprEvalException(nv + " is not a literal value");

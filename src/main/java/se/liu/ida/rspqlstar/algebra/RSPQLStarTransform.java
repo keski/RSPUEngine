@@ -140,7 +140,7 @@ public class RSPQLStarTransform extends TransformCopy {
         final NodeValueNode exp = new NodeValueNode(node_triple);
         final Var var = varDict.getFreshVariable();
         varMap.put(node_triple, var);
-        OpExtend opExtend = (OpExtend) OpExtend.create(OpTable.empty(), var, exp);
+        OpExtend opExtend = (OpExtend) OpExtend.create(OpTable.unit(), var, exp);
         return new OpExtendQuad(opExtend, graph);
     }
 

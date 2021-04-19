@@ -53,7 +53,11 @@ public class DecodeBindingsIterator extends QueryIter {
         for (int i = curInput.size() - 1; i >= 0; i--) {
             if (curInput.contains(i)) {
                 final Key key = curInput.get(i);
-                curOutput.add(varDict.getVar(i), getNode(key));
+                if(key instanceof NodeWrapperKey){
+                    curOutput.add(varDict.getVar(i), ((NodeWrapperKey) key).node);
+                } else {
+                    curOutput.add(varDict.getVar(i), getNode(key));
+                }
             }
         }
         return curOutput;
@@ -72,16 +76,14 @@ public class DecodeBindingsIterator extends QueryIter {
                 node = new Node_Triple(new Triple(s, p, o));
             } else if (key instanceof NodeWrapperKey) {
                 node = ((NodeWrapperKey) key).node;
+            } else if (IdFactory.isReferenceId(key.id)) {
+                final IdBasedTriple idBasedTriple = rd.getIdBasedTriple(key.id);
+                final Node s = getNode(new Key(idBasedTriple.subject));
+                final Node p = getNode(new Key(idBasedTriple.predicate));
+                final Node o = getNode(new Key(idBasedTriple.object));
+                node = new Node_Triple(new Triple(s, p, o));
             } else {
-                if (IdFactory.isReferenceId(key.id)) {
-                    final IdBasedTriple idBasedTriple = rd.getIdBasedTriple(key.id);
-                    final Node s = getNode(new Key(idBasedTriple.subject));
-                    final Node p = getNode(new Key(idBasedTriple.predicate));
-                    final Node o = getNode(new Key(idBasedTriple.object));
-                    node = new Node_Triple(new Triple(s, p, o));
-                } else {
-                    node = nd.getNode(key.id);
-                }
+                node = nd.getNode(key.id);
             }
 
             // If a StarNode is retrieved, convert to Jena node
@@ -89,7 +91,7 @@ public class DecodeBindingsIterator extends QueryIter {
                 return ((Node_Concrete_WithID) node).asJenaNode();
             }
         } catch (Exception e){
-            e.printStackTrace();
+            System.err.println(e);
             return null;
         }
         return node;

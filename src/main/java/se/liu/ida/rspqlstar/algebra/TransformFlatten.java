@@ -1,59 +1,78 @@
 package se.liu.ida.rspqlstar.algebra;
 
 import org.apache.jena.sparql.algebra.Op;
+import org.apache.jena.sparql.algebra.Transform;
 import org.apache.jena.sparql.algebra.TransformCopy;
-import org.apache.jena.sparql.algebra.op.OpExt;
-import org.apache.jena.sparql.algebra.op.OpJoin;
-import org.apache.jena.sparql.algebra.op.OpSequence;
-import org.apache.jena.sparql.algebra.op.OpTable;
+import org.apache.jena.sparql.algebra.op.*;
+import org.apache.jena.sparql.expr.Expr;
+import org.apache.jena.sparql.expr.ExprList;
+import se.liu.ida.rspqlstar.algebra.op.OpExtendQuad;
 import se.liu.ida.rspqlstar.algebra.op.OpWindow;
 
+import java.util.ArrayList;
 import java.util.List;
 
-public class TransformFlatten extends TransformCopy {
-    @Override
-    public Op transform(final OpExt opExt) {
-        if(opExt instanceof OpWindow){
-            final OpWindow opWindow = (OpWindow) opExt;
-            final Op op = opWindow.getSubOp();
-            Op op2 = op;
-            if(op instanceof OpSequence){
-                op2 = transform((OpSequence) op);
-            }
-            return opWindow.copy(op2);
-        } else {
-            return opExt;
-        }
-    }
+public class TransformFlatten {
+    public static OpSequence apply(Op op) throws Exception {
+        ArrayList<Op> listOfOps = new ArrayList<>();
+        flatten(op, listOfOps);
 
-    public Op transform(OpSequence op){
         OpSequence opSequence = OpSequence.create();
         opSequence.add(OpTable.unit());
-        flatten(opSequence, op);
+        for(Op op2: listOfOps){
+            opSequence.add(op2);
+        }
         return opSequence;
     }
 
     /**
-     * Recursive flattening of op.
-     *
-     * @param opSequence OpSequence populated by flattening
-     * @param op Incoming op.
-     * @return
+     * Return a list of flattened ops. Filters are added to the beginning of the list.
+     * @param op
+     * @param listOfOps
      */
-    public OpSequence flatten(OpSequence opSequence, Op op){
-        if(op instanceof OpSequence){
-            for(Op op2 : ((OpSequence) op).getElements()){
-                flatten(opSequence, op2);
+    public static void flatten(Op op, ArrayList<Op> listOfOps) throws Exception {
+        if (op instanceof OpQuad) {
+            listOfOps.add(op);
+        } else if (op instanceof OpSequence) {
+            for(Op op2: ((OpSequence) op).getElements()){
+                flatten(op2, listOfOps);
             }
-        } else if(op instanceof OpJoin){
-            flatten(opSequence, ((OpJoin) op).getLeft());
-            flatten(opSequence, ((OpJoin) op).getRight());
-        } else if(op instanceof OpTable){
-            return opSequence;
+        } else if (op instanceof OpFilter) {
+            OpFilter opFilter = (OpFilter) op;
+            for(Expr expr: opFilter.getExprs()){
+                listOfOps.add(0, opFilter.filterBy(new ExprList(expr), OpTable.unit())); // split compiled
+            }
+            //listOfOps.add(0, opFilter.filterBy(opFilter.getExprs(), OpTable.unit()));
+            flatten(opFilter.getSubOp(), listOfOps);
+        } else if (op instanceof OpWindow) {
+            OpWindow opWindow = (OpWindow) op;
+            OpSequence subOpSequence = apply(opWindow.getSubOp());
+            // pull the filters out
+            for(int i=0; i < subOpSequence.getElements().size();){
+                Op op2 = subOpSequence.getElements().get(i);
+                if(op2 instanceof OpFilter){
+                    listOfOps.add(0, op2);
+                    subOpSequence.getElements().remove(op2);
+                } else {
+                    i++;
+                }
+            }
+            listOfOps.add(opWindow.copy(subOpSequence));
+        } else if (op instanceof OpExtend) {
+            OpExtend opExtend = (OpExtend) op;
+            listOfOps.add(opExtend.copy(OpTable.unit()));
+            for(Op op2: apply(opExtend.getSubOp()).getElements()){
+                if(op2 instanceof OpTable){
+                    continue;
+                }
+                listOfOps.add(op2);
+            }
+        }  else if (op instanceof OpExtendQuad) {
+            listOfOps.add(op);
+        } else if(op instanceof OpTable) {
+            // skip
         } else {
-            //System.err.println("add op: " + op.getClass());
-            opSequence.add(op);
+            throw new Exception(op.getClass() + " is not yet supported");
         }
-        return opSequence;
     }
 }
