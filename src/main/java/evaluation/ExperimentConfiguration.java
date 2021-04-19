@@ -2,7 +2,9 @@ package evaluation;
 
 import se.liu.ida.rspqlstar.algebra.RSPQLStarAlgebraGenerator;
 import se.liu.ida.rspqlstar.function.LazyNodeCache;
+import se.liu.ida.rspqlstar.function.LazyNodeValue;
 import se.liu.ida.rspqlstar.function.Probability;
+import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.idnodes.Lazy_Node_Concrete_WithID;
 import se.liu.ida.rspqlstar.util.TimeUtil;
 
 import java.io.IOException;
@@ -58,13 +60,13 @@ public class ExperimentConfiguration {
 
     public void load(){
         // reset all
-        Probability.USE_CACHE = useCache;
+        Lazy_Node_Concrete_WithID.CACHE_ENABLED = useCache;
         RSPQLStarAlgebraGenerator.PULL_RSPU_FILTERS = rspuFilterPull;
         Probability.USE_LAZY_VAR = useLazyVars;
-        Probability.THROTTLE_EXECUTION = uncertaintyFunctionThrottle;
+        Lazy_Node_Concrete_WithID.THROTTLE_EXECUTION = uncertaintyFunctionThrottle;
         LazyNodeCache.reset();
         // clear gc and sleep for 3 seconds
         System.gc();
-        TimeUtil.silentSleep(10000);
+        TimeUtil.silentSleep(15000);
     }
 }

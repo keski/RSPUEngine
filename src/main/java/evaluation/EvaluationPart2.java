@@ -1,8 +1,11 @@
 package evaluation;
 
 import org.apache.log4j.Logger;
+import se.liu.ida.rspqlstar.function.LazyNodeCache;
 import se.liu.ida.rspqlstar.function.LazyNodeValue;
 import se.liu.ida.rspqlstar.function.Probability;
+import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.NodeDictionaryFactory;
+import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.idnodes.Lazy_Node_Concrete_WithID;
 import se.liu.ida.rspqlstar.store.engine.RSPQLStarEngineManager;
 import se.liu.ida.rspqlstar.store.engine.RSPQLStarQueryExecution;
 import se.liu.ida.rspqlstar.stream.ResultWriterStream;
@@ -14,6 +17,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.rmi.server.ExportException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 
@@ -23,67 +27,35 @@ public class EvaluationPart2 {
     public PrintStream results;
     public PrintStream executions;
     public static String refTime = "2021-03-01T10:00:00";
-    public static int numberOfResults = 3;
-    public static int warmUp = 2;
+    public static int numberOfResults = 20;
+    public static int warmUp = 5;
+    public static double[] selectivities = new double[]{  1, .9, .8, .7, .6, .5, .4, .3, .2, .1, 0 };
+    public static double[] thresholds = new double[]{     1, .9, .8, .7, .6, .5, .4, .3, .2, .1, 0 };
+    public static String[] joinProps = new String[]{"join_100", "join_10", "join_01", "join_001"};
 
+    // 11*4*25*2*2
 
-    public static void main(String[] args) throws ParseException, IOException {
+    public static void main(String[] args) throws Exception {
         RSPQLStarEngineManager.init();
         EvaluationPart2 evaluation = new EvaluationPart2();
-        //evaluation.runWarmup();
-        //evaluation.run();
-        evaluation.test();
+
+        // re-run
+        // Q2: join_10
+        // Q1: join_001
+
+        joinProps = new String[]{"join_001", "join_01", "join_10", "join_100" };
+        evaluation.run("Q-part2.rspqlstar");
     }
-    public void test() throws IOException, ParseException {
-        int computedEvery = 10000;
 
-        results = new PrintStream(new FileOutputStream("results/part2-results.csv", true));
-        executions = new PrintStream(new FileOutputStream("results/part2-summaries.csv", true));
+    public void run(String queryFile) throws Exception {
+        String name = queryFile.split("\\.")[0];
+        results = new PrintStream(new FileOutputStream("resources/results/" + name + "-results.csv", true));
+        executions = new PrintStream(new FileOutputStream("resources/results/" + name + "-summaries1.csv", true));
         printExecutionsHeader();
-
-        double[] selectivities = new double[]{ 1 };
-        double[] thresholds = new double[]{    1 };
 
         // Basic configuration, modify between runs
         ExperimentConfiguration config = new ExperimentConfiguration(
-                "resources/queries/part2-query1.rspqlstar", // query file
-                numberOfResults, // number of results
-                1, // warm up
-                true, // cache
-                true, // lazy vars
-                true, // RSPU filter pull
-                thresholds, // thresholds
-                selectivities, // equivalent selectivities
-                50, // throttle execution
-                false, // ox stream 1
-                false, // ox stream 2
-                false, // temp stream 1
-                false // temp stream 2
-        );
-
-        long duration = (config.warmUp+config.numberOfResults) * computedEvery + 5000;
-        for(String join: new String[]{"join_001"}){
-            config.join = join;
-            run(config, duration);
-        }
-
-        results.close();
-        executions.close();
-    }
-
-    public void run() throws IOException, ParseException {
-        int computedEvery = 10000;
-
-        results = new PrintStream(new FileOutputStream("results/part2-results.csv", true));
-        executions = new PrintStream(new FileOutputStream("results/part2-summaries.csv", true));
-        printExecutionsHeader();
-
-        double[] selectivities = new double[]{ 1, .9, .8, .7, .6, .5, .4, .3, .2, .1, 0 };
-        double[] thresholds = new double[]{    1, .9, .8, .7, .6, .5, .4, .3, .2, .1, 0 };
-
-        // Basic configuration, modify between runs
-        ExperimentConfiguration config = new ExperimentConfiguration(
-                "resources/queries/part2-query1.rspqlstar", // query file
+                "resources/queries/" + queryFile, // query file
                 numberOfResults, // number of results
                 warmUp, // warm up
                 true, // cache
@@ -91,36 +63,34 @@ public class EvaluationPart2 {
                 true, // RSPU filter pull
                 thresholds, // thresholds
                 selectivities, // equivalent selectivities
-                50, // throttle execution
+                -1, // throttle execution. Throttling should be handled with care, realistic simulations take approximately 2 ms only!
                 false, // ox stream 1
                 false, // ox stream 2
                 false, // temp stream 1
                 false // temp stream 2
         );
 
-        long duration = (config.warmUp+config.numberOfResults) * computedEvery + 5000;
-
-        // Join partners RHS
-        // RHS = 0.01       1 to .001
+        // Join partners RHS to LHS
+        // RHS = 0.01       1 to .01
         // RHS = 0.1        1 to .01
-        // RHS = 1          1 to 1
-        // RHS = 10         1 to 100
-        // RHS = 100        1 to 1000
-        for(String join: new String[]{"join_001", "join_01", "join_10", "join_100"}){
+        // RHS = 10         1 to 10
+        // RHS = 100        1 to 100
+        for(String join: joinProps){
             config.join = join;
-            run(config, duration);
+            run(config);
         }
-
-        results.close();
-        executions.close();
+        results.flush();
+        executions.flush();
     }
 
-    public void run(ExperimentConfiguration config, long duration) throws ParseException, IOException {
-        for (boolean h5 : new boolean[]{false, true}) {
+    public void run(ExperimentConfiguration config) throws ParseException, IOException {
+        for (boolean h5 : new boolean[]{true, false}) {
             for(int i=0; i < config.thresholds.length; i++) {
+                int computedEvery = 4000;
+                long duration = (config.warmUp + config.numberOfResults) * computedEvery + 5000;
+
                 config.rspuFilterPull = h5;
                 config.load();
-                logger.info("# THRESHOLD: " + config.thresholds.length + " : h5: " + config.rspuFilterPull);
 
                 final long applicationTime = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(refTime).getTime();
                 final RSPQLStarEngineManager manager = new RSPQLStarEngineManager(applicationTime);
@@ -128,12 +98,15 @@ public class EvaluationPart2 {
                 manager.registerStreamFromFile("resources/data/events1.trigstar", "http://example.org/events1");
                 manager.registerStreamFromFile("resources/data/events2.trigstar", "http://example.org/events2");
 
-
                 double threshold = config.thresholds[i];
+                // Query name must be unique!
+                String[] path = config.queryFile.split("/");
+                String queryName = path[path.length-1] + "_" + config.join + "_" + threshold + "_" + config.rspuFilterPull;
+                logger.info("Running: " + queryName);
                 String query = new String(Files.readAllBytes(Paths.get(config.queryFile)));
                 query = query.replaceAll("\\$THRESHOLD", "" + threshold);
                 query = query.replaceAll("\\$JOIN", "" + config.join);
-                query = query.replaceAll("\\$QUERY_NAME", config.join + "_" + threshold + "_" + config.rspuFilterPull);
+                query = query.replaceAll("\\$QUERY_NAME", queryName);
 
                 System.out.println(query);
 
@@ -146,15 +119,11 @@ public class EvaluationPart2 {
                 System.out.println("Run duration: " + duration + " ms");
                 TimeUtil.silentSleep(duration);
                 System.out.println("Stop execution...");
-                manager.stop();
-                //System.err.println("Cache hits: " + LazyNodeValue.cacheHits);
-                //System.err.println("Cache size:" + LazyNodeValue.cache.size());
-                //System.err.println("Cache resolved lazy vars: " + LazyNodeValue.resolvedCounter);
-                //System.err.println("Cache lazy vars: " + LazyNodeValue.lazyVarCounter);
+                manager.stop(5000);
+                listener.close();
             }
         }
     }
-
     public void printExecutionsHeader(){
         String sep = "\t";
         executions.print("avg_ms");

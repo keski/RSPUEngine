@@ -1,0 +1,28 @@
+# Query 1 joins the events of window 2 on a property in window 1.
+# (i.e., the result of window 2 is small, the result of window 1 is large).
+
+BASE <http://example.org/data/>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX rspu: <http://w3id.org/rsp/rspu#>
+PREFIX : <http://example.org/ontology/>
+
+REGISTER STREAM <$QUERY_NAME> COMPUTED EVERY PT4S AS
+SELECT ?value1 ?value2
+FROM NAMED WINDOW <w1> ON <http://example.org/events1> [RANGE PT10S STEP PT1S]
+FROM NAMED WINDOW <w2> ON <http://example.org/events2> [RANGE PT10S STEP PT1S]
+WHERE {
+    WINDOW <w1> {
+        GRAPH ?g1 {
+            ?e1 sosa:hasSimpleResult ?value1 .
+            ?e1 :$JOIN ?e2 .
+            << ?e1 sosa:hasSimpleResult ?value1 >> rspu:uncertainty ?unc .
+            # If the mean (i.e. ?value1) is greater than $THRESHOLD the filter will resolve to true
+            FILTER(rspu:lessThan(rspu:add(?unc, ?value1), $THRESHOLD) >= 0.5)
+        }
+    }
+    WINDOW <w2> {
+        GRAPH ?g2 {
+            ?e2 sosa:hasSimpleResult ?value2 .
+        }
+    }
+}

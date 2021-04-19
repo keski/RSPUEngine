@@ -19,16 +19,17 @@ public class Lazy_Node_Concrete_WithID extends Node_Concrete_WithID {
     public Node resolvedNode = null;
     public NodeValue[] args;
     private Consumer<NodeValue[]> fn;
-    public static int unresolvedLazyNodes = 0;
+    public static int registeredLazyNodes = 0;
     public static int resolvedLazyNodes = 0;
-    public static int cachedLazyNodes = 0;
+    public static int cacheHits = 0;
     public static long THROTTLE_EXECUTION = -1;
+    public static boolean CACHE_ENABLED = true;
 
     public Lazy_Node_Concrete_WithID(String label,  NodeValue[] args, long id) {
         super(label, id);
         this.args = args;
         key = label;
-        unresolvedLazyNodes++;
+        registeredLazyNodes++;
     }
 
     /**
@@ -82,18 +83,26 @@ public class Lazy_Node_Concrete_WithID extends Node_Concrete_WithID {
     }
 
     public void trigger(){
-        if(resolvedNode == null) {
-            unresolvedLazyNodes--;
-            Node n = LazyNodeCache.get(key);
-            if(n != null){
-                cachedLazyNodes++;
-                resolvedNode = n;
-            } else {
-                TimeUtil.silentSleep(THROTTLE_EXECUTION);
-                resolvedLazyNodes++;
-                fn.accept(args);
-                LazyNodeCache.add(key, resolvedNode);
-            }
+        if(resolvedNode != null) {
+            return;
+        }
+        // no cache? always resolve
+        if(!CACHE_ENABLED){
+            TimeUtil.silentSleepNs(THROTTLE_EXECUTION);
+            resolvedLazyNodes++;
+            fn.accept(args);
+            return;
+        }
+        // cache? check if there's a hit first
+        final Node n = LazyNodeCache.get(key);
+        if(n != null){
+            cacheHits++;
+            resolvedNode = n;
+        } else {
+            TimeUtil.silentSleepNs(THROTTLE_EXECUTION);
+            resolvedLazyNodes++;
+            fn.accept(args);
+            LazyNodeCache.add(key, resolvedNode);
         }
     }
 
@@ -139,5 +148,11 @@ public class Lazy_Node_Concrete_WithID extends Node_Concrete_WithID {
     public Node asJenaNode() {
         System.err.println("lazyNode as asJenaNode");
         return null;
+    }
+
+    public static void reset(){
+        registeredLazyNodes = 0;
+        resolvedLazyNodes = 0;
+        cacheHits = 0;
     }
 }

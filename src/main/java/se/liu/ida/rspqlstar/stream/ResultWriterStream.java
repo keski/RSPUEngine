@@ -27,7 +27,6 @@ public class ResultWriterStream implements ContinuousListener {
     private final PrintStream results;
     private final PrintStream executions;
     private String sep = "\t";
-    public boolean dropLiteralDatatype = true;
     public boolean first = true;
 
     // other
@@ -129,7 +128,7 @@ public class ResultWriterStream implements ContinuousListener {
                 executions.print(durationsList.stream().map(Object::toString).collect(Collectors.joining(", ")));
                 executions.print("\n");
             }
-            logger.info("Wrote to result file: " + (executionCounter - config.warmUp));
+            logger.info("Wrote " + (executionCounter - config.warmUp) + " of " + config.numberOfResults);
         }
 
         logger.info(String.format("Wrote %s results, executed in %s ms", counter, duration));
@@ -138,12 +137,6 @@ public class ResultWriterStream implements ContinuousListener {
     public String getString(RDFNode node){
         if(node == null){
             return "null";
-        }
-
-        if(dropLiteralDatatype){
-            if(node.isLiteral()){
-                return  node.asLiteral().getLexicalForm();
-            }
         }
         return node.toString();
     }

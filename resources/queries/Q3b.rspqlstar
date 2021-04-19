@@ -1,0 +1,45 @@
+# Q5 with inversed window order.
+
+BASE <http://example.org/data/>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX rspu: <http://w3id.org/rsp/rspu#>
+PREFIX : <http://example.org/ontology/>
+
+REGISTER STREAM <$QUERY_NAME> COMPUTED EVERY PT4S AS
+SELECT ?location ?value1 ?value2 ?value3
+FROM NAMED WINDOW <w1> ON <http://example.org/ox1> [RANGE PT1S STEP PT1S]
+FROM NAMED WINDOW <w2> ON <http://example.org/ox2> [RANGE PT1S STEP PT1S]
+FROM NAMED WINDOW <w3> ON <http://example.org/temp1> [RANGE PT1S STEP PT1S]
+WHERE {
+    ?sensor1 a :OxygenSensor1 ;
+        :location ?location .
+    ?sensor2 a :OxygenSensor2 ;
+        :location ?location .
+    ?sensor3 a :TemperatureSensor1 ;
+        :location ?location .
+
+    :OxygenSensor1 rspu:uncertainty ?mu1 .
+
+    WINDOW <w3> {
+        GRAPH ?g3 {
+            ?o3 sosa:hasSimpleResult ?value3 ;
+                sosa:madeBySensor ?sensor3 .
+            FILTER(?value3 > 30)
+        }
+    }
+    WINDOW <w2> {
+        GRAPH ?g2 {
+            ?o2 sosa:hasSimpleResult ?value2 ;
+                sosa:madeBySensor ?sensor2 .
+            << ?o2 sosa:hasSimpleResult ?value2 >> rspu:uncertainty ?mu2 .
+            # Check if the reported oxygen concentration values differ with a probability greater than P
+            FILTER(rspu:lessThan(rspu:add(?mu1, ?value1), rspu:add(?mu2, ?value2)) >= $P || rspu:greaterThan(rspu:add(?mu1, ?value1), rspu:add(?mu2, ?value2)) >= $P)
+        }
+    }
+    WINDOW <w1> {
+        GRAPH ?g1 {
+            ?o1 sosa:hasSimpleResult ?value1 ;
+                sosa:madeBySensor ?sensor1 .
+        }
+    }
+}

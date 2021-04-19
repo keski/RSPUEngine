@@ -241,6 +241,20 @@ public class TransformHeuristics extends TransformCopy {
             sel += 1;
         }
 
+        // A nested expression (i.e., an expression split up into extend quad and quad)
+        // Should be treated as a single statement and should appear next to each other.
+        // This is accomplished by simply adding 1 for every defined variable in a quad that matches the ?_ patterns.
+        if(!q.getSubject().isConcrete()){
+            if(vars.contains(q.getSubject().getName()) && q.getSubject().getName().startsWith("_")) {
+                sel += 1;
+            }
+        }
+        if(!q.getObject().isConcrete()){
+            if(vars.contains(q.getObject().getName()) && q.getObject().getName().startsWith("_")){
+                sel += 1;
+            }
+        }
+
         int score = selectivity[sel];
         return score;
     }

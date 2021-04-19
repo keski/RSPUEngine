@@ -5,8 +5,10 @@ import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.sparql.engine.*;
 import org.apache.log4j.Logger;
 import se.liu.ida.rspqlstar.function.LazyNodeCache;
+import se.liu.ida.rspqlstar.function.Probability;
 import se.liu.ida.rspqlstar.query.RSPQLStarQuery;
 import se.liu.ida.rspqlstar.store.dataset.StreamingDatasetGraph;
+import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.idnodes.Lazy_Node_Concrete_WithID;
 import se.liu.ida.rspqlstar.stream.ContinuousListener;
 import se.liu.ida.rspqlstar.util.TimeUtil;
 
@@ -114,7 +116,11 @@ public class RSPQLStarQueryExecution extends QueryExecutionBase {
                     exec.close();
                     nextExecution += query.getComputedEvery();
                     if(CLEAR_CACHE_BETWEEN_EXECUTIONS){
+                        System.err.println("Call counter: " + Probability.callCounter);
+                        System.err.println("Resolved lazy nodes: " + Lazy_Node_Concrete_WithID.resolvedLazyNodes);
+                        Lazy_Node_Concrete_WithID.reset();
                         LazyNodeCache.reset();
+                        Probability.callCounter = 0;
                     }
                 }
                 isRunning = false;

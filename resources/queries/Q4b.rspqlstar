@@ -1,0 +1,30 @@
+# Q7 with inversed window order.
+
+BASE <http://example.org/data/>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX rspu: <http://w3id.org/rsp/rspu#>
+PREFIX : <http://example.org/ontology/>
+
+REGISTER STREAM <$QUERY_NAME> COMPUTED EVERY PT4S AS
+SELECT ?location ?value1 ?value2 ?p
+FROM NAMED WINDOW <w1> ON <http://example.org/ox2> [RANGE PT10S STEP PT1S]
+FROM NAMED WINDOW <w2> ON <http://example.org/temp2> [RANGE PT10S STEP PT1S]
+WHERE {
+    WINDOW <w2> {
+        GRAPH ?g2 {
+            ?o2 sosa:hasSimpleResult ?value2 ;
+                sosa:hasFeatureOfInterest ?location .
+            # The reported values should be greater than 30
+            FILTER(?value2 > 30)
+        }
+    }
+    WINDOW <w1> {
+        GRAPH ?g1 {
+            ?o1 sosa:hasSimpleResult ?value1 ;
+                sosa:hasFeatureOfInterest ?location .
+            << ?o1 sosa:hasSimpleResult ?value1 >> rspu:uncertainty ?unc .
+            FILTER(?value1 < 0.20)
+            BIND(rspu:lessThan(rspu:add(?unc, ?value1), 0.18) AS ?p)
+        }
+    }
+}

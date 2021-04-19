@@ -24,38 +24,61 @@ import se.liu.ida.rspqlstar.algebra.RSPQLStarAlgebraGenerator;
 import se.liu.ida.rspqlstar.datatypes.ProbabilityDistribution;
 import se.liu.ida.rspqlstar.store.dictionary.nodedictionary.idnodes.Lazy_Node_Concrete_WithID;
 import se.liu.ida.rspqlstar.store.engine.RSPQLStarEngineManager;
-import se.liu.ida.rspqlstar.util.TimeUtil;
 
 import java.util.Date;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+
 public class Probability {
-    public static boolean USE_CACHE = true;
     public static boolean USE_LAZY_VAR = true;
+    public static int callCounter = 0;
 
     private static final double MIN_VALUE = 0.0000001; // Double.MIN_VALUE?
     public static final String ns = "http://w3id.org/rsp/rspu#";
 
-    public static void main(String[] args){
+    public static void main(String[] args) throws InterruptedException {
+
+        if (true) {
+            for(int x=0; x < 10; x++) {
+                long t0 = new Date().getTime();
+                NormalDistribution d1 = new NormalDistribution(new JDKRandomGenerator(), 1, 1);
+                NormalDistribution d2 = new NormalDistribution(new JDKRandomGenerator(), 1, 1);
+                int sampleSize = 10000;
+                DescriptiveStatistics ds = new DescriptiveStatistics();
+                for(int i=0; i<sampleSize; i++){
+                    ds.addValue(d1.sample() < d2.sample() ? 1 : 0);
+                }
+                System.err.println(new Date().getTime() - t0 + "ms");
+            }
+            return;
+        }
         RSPQLStarEngineManager.init();
         RSPQLStarEngineManager manager = new RSPQLStarEngineManager(new Date().getTime());
-        RSPQLStarAlgebraGenerator.PULL_RSPU_FILTERS = false;
+        RSPQLStarAlgebraGenerator.PULL_RSPU_FILTERS = true;
+        Probability.USE_LAZY_VAR = true;
+        Lazy_Node_Concrete_WithID.CACHE_ENABLED = false;
 
-        for(int i=0; i<1000; i++){
+        for(int i=0; i<10; i++){
             Node g = NodeFactory.createURI("http://g1");
             Node s = NodeFactory.createURI("http://s" + i);
             Node p = NodeFactory.createLiteral("http://p", XSDDatatype.XSDdecimal);
-            Node o = NodeFactory.createLiteralByValue(1, XSDDatatype.XSDdecimal);
+            Node o = NodeFactory.createLiteralByValue(i%10, XSDDatatype.XSDdecimal);
             manager.getSdg().add(new Quad(g,s,p,o));
         }
 
         ResultSet rs = manager.runOnce("" +
+                "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> " +
                 "PREFIX rspu: <http://w3id.org/rsp/rspu#> " +
                 "REGISTER STREAM <s> COMPUTED EVERY PT4S AS " +
-                "SELECT ?s ?p ?x " +
+                "SELECT ?s ?p ?o " +
                 "WHERE {" +
                 "    GRAPH <http://g1> { ?s ?p ?o } " +
-                "    FILTER(rspu:lessThan(\"N(0,1)\"^^rspu:distribution, rspu:add(\"N(0,1)\"^^rspu:distribution, ?o)) > 0) " + // avg. no cache: 1.9ms, avg: cache: 0.48ms
+                //"    FILTER(rspu:lessThan(\"N(0,1)\"^^rspu:distribution, ?o) > 0) " + // avg. no cache: 1.9ms, avg: cache: 0.48ms
+                "    GRAPH ?g { ?s ?p \"1\"^^xsd:decimal } " +
+                "    BIND(rspu:lessThan(\"N(0,1)\"^^rspu:distribution, ?o) AS ?prob) " + // avg. no cache: 1.9ms, avg: cache: 0.48ms
+                //"    FILTER(rspu:lessThan(\"N(0,1)\"^^rspu:distribution, rspu:add(\"N(0,1)\"^^rspu:distribution, ?o)) > 0) " + // avg. no cache: 1.9ms, avg: cache: 0.48ms
                 //"    FILTER(rspu:lessThan(\"N(0,1)\"^^rspu:distribution, ?o) > 0) " + // avg: 0.375ms (if all cached), avg: 0.35ms. Simple value, no difference in using cache!
                 //"    FILTER(?o > 0) " + // avg: 0.3ms
                 "}");
@@ -63,29 +86,30 @@ public class Probability {
         double counter = 0;
         while(rs.hasNext()){
             for(String var: rs.getResultVars()){
-                System.err.print(var + "\t");
+                System.out.print(var + "\t");
             }
-            String line = "";
+            System.out.println();
             while(rs.hasNext()) {
                 QuerySolution qs = rs.next();
+                System.err.println(qs);
                 for (String var : rs.getResultVars()) {
                     RDFNode n = qs.get(var);
+                    System.err.println(n.getClass());
                     if(n != null) {
-                        line += n.toString() + "\t";
+                        System.out.print(n.toString() + "\t");
                     } else {
-                        line += "null\t";
+                        System.out.print("null\t");
                     }
                 }
+                System.out.println();
                 counter++;
             }
         }
         System.err.println(counter + " results");
-        System.err.println("unresolvedLazyNodes: " + Lazy_Node_Concrete_WithID.unresolvedLazyNodes);
+        System.err.println("Unc calls: " + Probability.callCounter);
         System.err.println("resolvedLazyNodes: " + Lazy_Node_Concrete_WithID.resolvedLazyNodes);
-        System.err.println("cachedLazyNodes: " + Lazy_Node_Concrete_WithID.cachedLazyNodes);
-        System.err.println("cacheHits: " + LazyNodeCache.cacheHits);
 
-        long t1 = new Date().getTime();
+        double t1 = new Date().getTime();
         System.err.println(t1-t0 + " ms");
         System.err.println((t1-t0)/counter + " ms (avg)");
     }
@@ -104,75 +128,66 @@ public class Probability {
     public static FunctionFactory fnLessThan = s -> new FunctionBase2() { // less than or equal
         @Override
         public NodeValue exec(NodeValue arg1, NodeValue arg2) {
-            if(USE_LAZY_VAR){
-                final LazyNodeValue lnv = new LazyNodeValue("lessThan", new NodeValue[]{arg1, arg2});
-                final Consumer<NodeValue[]> fn = (args) -> {
-                    lnv.node.resolvedNode = Probability.lessThan(args[0], args[1], false).getNode();
-                };
-                lnv.node.setConsumer(fn);
-                return lnv;
-            }
-            return Probability.lessThan(arg1, arg2, false);
+            callCounter++;
+            final LazyNodeValue lnv = new LazyNodeValue("lessThan", new NodeValue[]{arg1, arg2});
+            final Consumer<NodeValue[]> fn = (args) -> {
+                lnv.node.resolvedNode = Probability.lessThan(args[0], args[1], false).getNode();
+            };
+            lnv.node.setConsumer(fn);
+            if(!USE_LAZY_VAR){ return lnv.getNodeValue(); }
+            return lnv;
         }
     };
 
     public static FunctionFactory fnLessThanOrEqual = s -> new FunctionBase2() { // less than or equal
         @Override
         public NodeValue exec(NodeValue arg1, NodeValue arg2) {
-            if(USE_LAZY_VAR){
-                final LazyNodeValue lnv = new LazyNodeValue("lessThanOrEqual", new NodeValue[]{arg1, arg2});
-                final Consumer<NodeValue[]> fn = (args) -> {
-                    lnv.node.resolvedNode = Probability.lessThan(args[0], args[1], true).getNode();
-                };
-                lnv.node.setConsumer(fn);
-                return lnv;
-            }
-            return Probability.lessThan(arg1, arg2, true);
+            final LazyNodeValue lnv = new LazyNodeValue("lessThanOrEqual", new NodeValue[]{arg1, arg2});
+            final Consumer<NodeValue[]> fn = (args) -> {
+                lnv.node.resolvedNode = Probability.lessThan(args[0], args[1], true).getNode();
+            };
+            lnv.node.setConsumer(fn);
+            if(!USE_LAZY_VAR){ return lnv.getNodeValue(); }
+            return lnv;
         }
     };
 
     public static FunctionFactory fnGreaterThan = s -> new FunctionBase2() { // greater than
         @Override
         public NodeValue exec(NodeValue arg1, NodeValue arg2) {
-            if(USE_LAZY_VAR){
-                final LazyNodeValue lnv = new LazyNodeValue("greaterThan", new NodeValue[]{arg1, arg2});
-                final Consumer<NodeValue[]> fn = (args) -> {
-                    lnv.node.resolvedNode = Probability.greaterThan(args[0], args[1], false).getNode();
-                };
-                lnv.node.setConsumer(fn);
-                return lnv;
-            }
-            return Probability.greaterThan(arg1, arg2, false);
+            final LazyNodeValue lnv = new LazyNodeValue("greaterThan", new NodeValue[]{arg1, arg2});
+            final Consumer<NodeValue[]> fn = (args) -> {
+                lnv.node.resolvedNode = Probability.greaterThan(args[0], args[1], false).getNode();
+            };
+            lnv.node.setConsumer(fn);
+            if(!USE_LAZY_VAR){ return lnv.getNodeValue(); }
+            return lnv;
         }
     };
 
     public static FunctionFactory fnGreaterThanOrEqual = s -> new FunctionBase2() { // greater than or equal
         @Override
         public NodeValue exec(NodeValue arg1, NodeValue arg2) {
-            if(USE_LAZY_VAR){
-                final LazyNodeValue lnv = new LazyNodeValue("greaterThanOrEqual", new NodeValue[]{arg1, arg2});
-                final Consumer<NodeValue[]> fn = (args) -> {
-                    lnv.node.resolvedNode = Probability.lessThan(args[0], args[1], true).getNode();
-                };
-                lnv.node.setConsumer(fn);
-                return lnv;
-            }
-            return Probability.lessThan(arg1, arg2, true);
+            final LazyNodeValue lnv = new LazyNodeValue("greaterThanOrEqual", new NodeValue[]{arg1, arg2});
+            final Consumer<NodeValue[]> fn = (args) -> {
+                lnv.node.resolvedNode = Probability.lessThan(args[0], args[1], true).getNode();
+            };
+            lnv.node.setConsumer(fn);
+            if(!USE_LAZY_VAR){ return lnv.getNodeValue(); }
+            return lnv;
         }
     };
 
     public static FunctionFactory fnBetween = s -> new FunctionBase3() {
         @Override
         public NodeValue exec(NodeValue arg1, NodeValue arg2, NodeValue arg3) {
-            if(USE_LAZY_VAR){
-                final LazyNodeValue lnv = new LazyNodeValue("between", new NodeValue[]{arg1, arg2, arg3});
-                final Consumer<NodeValue[]> fn = (args) -> {
-                    lnv.node.resolvedNode = Probability.between(args[0], args[1], args[2]).getNode();
-                };
-                lnv.node.setConsumer(fn);
-                return lnv;
-            }
-            return Probability.between(arg1, arg2, arg3);
+            final LazyNodeValue lnv = new LazyNodeValue("between", new NodeValue[]{arg1, arg2, arg3});
+            final Consumer<NodeValue[]> fn = (args) -> {
+                lnv.node.resolvedNode = Probability.between(args[0], args[1], args[2]).getNode();
+            };
+            lnv.node.setConsumer(fn);
+            if(!USE_LAZY_VAR){ return lnv.getNodeValue(); }
+            return lnv;
         }
     };
 
@@ -180,30 +195,27 @@ public class Probability {
     public static FunctionFactory fnAdd = s -> new FunctionBase2() {
         @Override
         public NodeValue exec(NodeValue arg1, NodeValue arg2) {
-            if(USE_LAZY_VAR){
-                final LazyNodeValue lnv = new LazyNodeValue("add", new NodeValue[]{arg1, arg2});
-                final Consumer<NodeValue[]> fn = (args) -> {
-                    lnv.node.resolvedNode = Probability.add(args[0], args[1]).getNode();
-                };
-                lnv.node.setConsumer(fn);
-                return lnv;
-            }
-            return Probability.add(arg1, arg2);
+            callCounter++;
+            final LazyNodeValue lnv = new LazyNodeValue("add", new NodeValue[]{arg1, arg2});
+            final Consumer<NodeValue[]> fn = (args) -> {
+                lnv.node.resolvedNode = Probability.add(args[0], args[1]).getNode();
+            };
+            lnv.node.setConsumer(fn);
+            if(!USE_LAZY_VAR){ return lnv.getNodeValue(); }
+            return lnv;
         }
     };
 
     public static FunctionFactory fnSubtract = s -> new FunctionBase2() {
         @Override
         public NodeValue exec(NodeValue arg1, NodeValue arg2) {
-            if(USE_LAZY_VAR){
-                final LazyNodeValue lnv = new LazyNodeValue("subtract", new NodeValue[]{arg1, arg2});
-                final Consumer<NodeValue[]> fn = (args) -> {
-                    lnv.node.resolvedNode = Probability.subtract(args[0], args[1]).getNode();
-                };
-                lnv.node.setConsumer(fn);
-                return lnv;
-            }
-            return Probability.subtract(arg1, arg2);
+            final LazyNodeValue lnv = new LazyNodeValue("subtract", new NodeValue[]{arg1, arg2});
+            final Consumer<NodeValue[]> fn = (args) -> {
+                lnv.node.resolvedNode = Probability.subtract(args[0], args[1]).getNode();
+            };
+            lnv.node.setConsumer(fn);
+            if(!USE_LAZY_VAR){ return lnv.getNodeValue(); }
+            return lnv;
         }
     };
 

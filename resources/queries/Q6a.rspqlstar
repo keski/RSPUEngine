@@ -1,0 +1,45 @@
+# Q11 but with inversed windows.
+
+BASE <http://example.org/data/>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX rspu: <http://w3id.org/rsp/rspu#>
+PREFIX : <http://example.org/ontology/>
+
+REGISTER STREAM <$QUERY_NAME> COMPUTED EVERY PT4S AS
+SELECT ?location ?value1 ?value2 ?value3 ?p1 ?p2
+FROM NAMED WINDOW <w1> ON <http://example.org/ox1> [RANGE PT1S STEP PT1S]
+FROM NAMED WINDOW <w2> ON <http://example.org/ox2> [RANGE PT1S STEP PT1S]
+FROM NAMED WINDOW <w3> ON <http://example.org/temp1> [RANGE PT1S STEP PT1S]
+WHERE {
+    ?sensor1 a :OxygenSensor1 ;
+        :location ?location .
+    ?sensor2 a :OxygenSensor2 ;
+        :location ?location .
+    ?sensor3 a :TemperatureSensor1 ;
+        :location ?location .
+
+    :OxygenSensor1 rspu:uncertainty ?unc1 .
+
+    WINDOW <w1> {
+        GRAPH ?g1 {
+            ?o1 sosa:hasSimpleResult ?value1 ;
+                sosa:madeBySensor ?sensor1 .
+        }
+    }
+    WINDOW <w2> {
+        GRAPH ?g2 {
+            ?o2 sosa:hasSimpleResult ?value2 ;
+                sosa:madeBySensor ?sensor2 .
+            << ?o2 sosa:hasSimpleResult ?value2 >> rspu:uncertainty ?unc2 .
+            BIND(rspu:lessThan(rspu:add(?unc1, ?value1), rspu:add(?unc2, ?value2)) AS ?p1)
+            BIND(rspu:greaterThan(rspu:add(?unc1, ?value1), rspu:add(?unc2, ?value2)) AS ?p2)
+        }
+    }
+    WINDOW <w3> {
+        GRAPH ?g3 {
+            ?o3 sosa:hasSimpleResult ?value3 ;
+                sosa:madeBySensor ?sensor3 .
+            FILTER(?value3 > 30)
+        }
+    }
+}

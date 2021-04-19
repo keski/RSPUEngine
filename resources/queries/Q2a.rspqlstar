@@ -1,0 +1,71 @@
+# For all tunnel segments, generate a notification if both oxygen sensors report an oxygen
+# concentration below 0.18 with a probability greater than $P, and both temperature sensors report
+# a temperature above 30 with a probability greater than $P.
+
+BASE <http://example.org/data/>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX rspu: <http://w3id.org/rsp/rspu#>
+PREFIX : <http://example.org/ontology/>
+
+REGISTER STREAM <$QUERY_NAME> COMPUTED EVERY PT8S AS
+SELECT ?location ?value1 ?value2 ?value3 ?value4
+FROM NAMED WINDOW <w1> ON <http://example.org/ox1> [RANGE PT5S STEP PT1S]
+FROM NAMED WINDOW <w2> ON <http://example.org/ox2> [RANGE PT5S STEP PT1S]
+FROM NAMED WINDOW <w3> ON <http://example.org/temp1> [RANGE PT5S STEP PT1S]
+FROM NAMED WINDOW <w4> ON <http://example.org/temp2> [RANGE PT5S STEP PT1S]
+WHERE {
+    ?sensor1 a :OxygenSensor1 ;
+        :location ?location .
+    ?sensor2 a :OxygenSensor2 ;
+        :location ?location .
+    ?sensor3 a :TemperatureSensor1 ;
+        :location ?location .
+    ?sensor4 a :TemperatureSensor2 ;
+        :location ?location .
+
+    :OxygenSensor1 rspu:uncertainty ?mu1 .
+    :TemperatureSensor1 rspu:uncertainty ?mu3 .
+
+    WINDOW <w1> {
+        GRAPH ?g1 {
+            ?o1 sosa:hasSimpleResult ?value1 ;
+                sosa:madeBySensor ?sensor1 .
+            # Check if the oxygen concentration is below 0.18 with some probability greater than P
+            # The reported values should be less than 0.20
+            FILTER(?value1 < 0.21)
+            FILTER(rspu:lessThan(rspu:add(?mu1, ?value1), 0.18) >= $P)
+        }
+    }
+    WINDOW <w2> {
+        GRAPH ?g2 {
+            ?o2 sosa:hasSimpleResult ?value2 ;
+                sosa:madeBySensor ?sensor2 .
+            << ?o2 sosa:hasSimpleResult ?value2 >> rspu:uncertainty ?mu2
+            # The reported value should be less than 0.20
+            FILTER(?value2 < 0.21)
+            # Check if the oxygen concentration is below 0.18 with some probability greater than P
+            FILTER(rspu:lessThan(rspu:add(?mu2, ?value2), 0.18) >= $P)
+        }
+    }
+    WINDOW <w3> {
+        GRAPH ?g3 {
+            ?o3 sosa:hasSimpleResult ?value3 ;
+                sosa:madeBySensor ?sensor3 .
+            # Temp should be be greater than 27
+            FILTER(?value3 > 27)
+            # Check if the temperature is above 30 with some probability greater than P
+            FILTER(rspu:greaterThan(rspu:add(?mu3, ?value3), 30) >= $P)
+        }
+    }
+    WINDOW <w4> {
+        GRAPH ?g4 {
+            ?o4 sosa:hasSimpleResult ?value4 ;
+                sosa:madeBySensor ?sensor4 .
+            # Temp should be be greater than 27
+            FILTER(?value4 > 27)
+            # Check if the temperature is above 30 with some probability greater than P
+            << ?o4 sosa:hasSimpleResult ?value4 >> rspu:uncertainty ?mu4
+            FILTER(rspu:greaterThan(rspu:add(?mu4, ?value4), 30) >= $P)
+        }
+    }
+}
